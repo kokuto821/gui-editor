@@ -137,14 +137,105 @@ Ghostty（WSL）$ cgui .
 | --- | --- | --- |
 | アプリの土台 | ローカルサーバー + ブラウザ（Chrome の `--app=` で専用ウィンドウ） | WSL で日本語入力やフォントの問題が出にくい。プロトタイプをそのまま活かせる |
 | 言語 | TypeScript（サーバーは Node。単体の実行ファイルが要るなら `bun build --compile`） | 画面とサーバーを1つの言語で書ける |
-| 画面 | Vite + Svelte（または Preact） | タブや選択位置など、状態の多い画面を軽く書ける |
+| 画面 | React 19 + Vite | 情報と事例が多い。CodeMirror などの命令的なライブラリも組み込みやすい |
+| CSS | Tailwind CSS v4（`@tailwindcss/vite`）+ 一部は普通の CSS | 5色の配色を `@theme` の変数で持てる。選択・ホバーなどの状態を短く書ける |
+| 状態管理 | Zustand | キー操作とサーバーからの通知を、React の外からも同じストアに対して書ける |
 | 通信 | WebSocket（読み書きと変更の通知を同じ接続で） | CLI の変更をすぐ画面へ送れる |
-| エディタ | CodeMirror 6 | 軽く、必要な機能だけ載せられる。閲覧時の色付けにも同じ Lezer を使う |
-| MD表示 | markdown-it + 自前のプラグイン | 要素ごとにソースの行番号が取れ、チェックを付けたときに `PLAN.md` の書き換える行を特定できる |
+| エディタ | CodeMirror 6（`@codemirror/language-data` で言語を遅延読み込み） | 軽く、必要な機能だけ載せられる。コードは閲覧も readOnly の同じ部品で表示し、MD 内のコードは `@lezer/highlight` で色付けする |
+| MD表示 | markdown-it（`html: false`）+ 自前のプラグイン | 要素ごとにソースの行番号が取れ、チェックを付けたときに `PLAN.md` の書き換える行を特定できる |
 | HTMLプレビュー | `iframe` + `sandbox`、別のポート（別オリジン）から配信 | 図解から本体の API に届かないようにする |
-| ファイル監視 | `@parcel/watcher`（または `chokidar`） | CLI の変更を自動反映する。`.git` は `HEAD` と `index` だけ見て、差分の更新に使う |
+| ファイル監視 | `@parcel/watcher` | CLI の変更を自動反映する。`.git` は `HEAD` と `index` だけ見て、差分の更新に使う |
 | git の読み取り | `git` コマンドの出力を読む（`status --porcelain=v2 -z`、`log`、`diff`） | 実装が小さく、挙動が CLI と一致する |
 | 配布 | `npm i -g` | 導入が1行で済む |
+
+### 内部構成
+
+パッケージは1つにする。画面は `Backend`（ファイル、監視、git、設定を扱う窓口）の型だけを知り、通信の中身を知らない。
+
+```
+bin/cgui.js            # #!/usr/bin/env node → dist/cli.js を読むだけ
+src/
+  shared/
+    protocol.ts        # 要求・応答・通知の型（画面とサーバーで共通）
+  server/
+    cli.ts             # 引数の解釈、動いているサーバーへの接続、ブラウザの起動
+    lock.ts            # ~/.cache/cgui/lock（pid, port, token）
+    open-browser.ts    # WSL の判定 → chrome.exe --app / cmd.exe start
+    http.ts            # 画面の配信と WebSocket の受付（token・Host・Origin の確認）
+    rpc.ts             # 要求を下のモジュールへ振り分ける
+    fs.ts              # 読む・書く・一覧・名前変更・削除。パスは $HOME の下に限る（realpath で確かめる）
+    watch.ts           # プロジェクトごとの監視、間引き、自分の書き込みの除外
+    git.ts             # status / log / diff の実行と出力の解析
+    state.ts           # 設定とブックマークの保存
+    preview.ts         # 図解用の別ポートのサーバー
+  web/
+    main.tsx
+    app.css            # Tailwind の読み込みと @theme（配色）
+    md.css diff.css    # Tailwind で書きにくい部分
+    backend/           # Backend の型と WsBackend（将来 TauriBackend を足す）
+    stores/            # Zustand のストア（状態・操作・読み方のフック）
+    hooks/             # DOM と外部ライブラリ用のフック
+    components/        # Toolbar, ProjectTabs, FileList, Bookmarks,
+                       # Preview/{Md,Html,Code,Folder}, DiffView, StatusBar, Menu
+    md/                # markdown-it のプラグイン（チェックボックス、[[リンク]]）
+    keys.ts            # キー操作（キー操作を受けるペインの切替を含む）
+dist/                  # 生成物（prepare で作る。コミットしない）
+```
+
+| 種類 | ライブラリ |
+| --- | --- |
+| サーバー | `node:http`、`sirv`（静的ファイル）、`ws`、`@parcel/watcher`、`valibot`（受け取った要求の確認）。git は `execFile` で直接呼ぶ |
+| 画面 | `react`、`react-dom`、`zustand`、`clsx`、`tailwindcss`、CodeMirror 6、`markdown-it`、`@lezer/highlight`。フォント（IBM Plex）は同梱する |
+| 開発 | `vite`、`tsup`（サーバーを `dist/cli.js` 1つにまとめる）、`vitest`、`@playwright/test`、`biome` |
+
+`package.json` のスクリプトは `"build": "vite build && tsup"`、`"prepare": "npm run build"` とする。
+
+### 状態管理
+
+Zustand のストアを用途ごとに分ける。`create()` が返すフックをそのまま部品で使い、Context や Provider は置かない。
+
+| ストア | 中身 |
+| --- | --- |
+| `stores/app.ts` | プロジェクト、プレビューのタブ、表示（ファイル / ブックマーク / 差分）、カーソル、キー操作を受けるペイン、パネルの表示と操作 |
+| `stores/files.ts` | パス → `{ text, mtime, dirty }` のキャッシュ。`fs.changed` で更新する |
+| `stores/git.ts` | プロジェクトのフォルダ → `{ status, log }`。`git.changed` で取り直す |
+
+- キー操作（`keys.ts`）と WebSocket の受信は React の外に置き、`useApp.getState()` の操作を呼ぶ。起動時に1回だけ登録する。
+- 部品では `useApp(s => ...)` で必要な値だけを読む。配列やオブジェクトは `useShallow` で包む。よく使う読み方は、ストアのファイルにセレクタとフック（`useProject` など）として並べる。
+- `hooks/` には、状態と関係ないものだけを置く: `useCodeMirror`（`EditorView` の作成・外部の変更の反映・破棄）、`useSplitDrag`（幅の調節）、`useMenuPosition`（「…」メニューの位置）。
+- CodeMirror はラッパーのライブラリを使わず、`useCodeMirror` で直接扱う（閲覧と編集の切替や、外部の変更を差し込むため）。
+- 入れ子の更新がつらくなったら `immer` ミドルウェアを足す。最初は入れない。
+
+### CSS
+
+- 配色は `app.css` の `@theme` に CSS 変数として書き（`--color-bg` `--color-line` `--color-soft` `--color-mute` `--color-ink`、差分の緑と赤）、ダークモードは `prefers-color-scheme` で変数を差し替える。部品の中で `dark:` は書かない。
+- 状態による見た目は `data-[active]:`、`group-hover:` などで書き、条件付きの class は `clsx` で組み立てる。
+- 次の3つは普通の CSS にする。
+  - MD の整形表示（`md.css`）: markdown-it が作る HTML には class を付けられないため、`.md h1` などの子孫セレクタで書く。`@tailwindcss/typography` は使わない（初期値を打ち消す手間が増えるため）。
+  - CodeMirror: `EditorView.theme()` で、上の CSS 変数を参照する。
+  - 差分の行（`diff.css`）: 行が多く、class を短く保ちたいため。
+
+### 通信
+
+画面からの要求は `id` 付きの JSON、サーバーからの通知は `id` なしで送る。
+
+```ts
+// 要求（画面 → サーバー）
+{ id, method: "fs.read",   params: { path } }
+{ id, method: "fs.write",  params: { path, text, baseMtime } }  // baseMtime がずれていたら衝突として返す
+{ id, method: "fs.list",   params: { dir } }
+{ id, method: "fs.rename" | "fs.delete", ... }
+{ id, method: "git.status" | "git.log" | "git.diff", params: { root, ... } }
+{ id, method: "state.get" | "state.set", ... }
+
+// 通知（サーバー → 画面）
+{ event: "fs.changed",   root, paths }  // 50ms 間引く
+{ event: "git.changed",  root }         // 200ms 間引く。画面は git.status を取り直す
+{ event: "project.open", path }         // 2回目の `cgui` が来たとき
+```
+
+- 画面が書き込んだファイルは、そのときの mtime を覚えておき、その変更の通知は送り返さない。
+- 外部で変わったファイルは、未編集のタブなら読み直す。編集中のタブの扱いは9章で決める。
 
 ### 起動
 
@@ -199,6 +290,7 @@ GitHub のリポジトリから `npm i -g` で入れてもらう（npm には公
 | よく見るファイルはブックマークで開く | 画面を分割せずに、計画などをすぐ見返せる。ファイル一覧の中に置き、新しい枠を増やさない |
 | 切替はアイコン1つのボタンにする | ツールバーを小さく保てる |
 | キー操作は、クリックしたペインだけが受ける | 一覧を動かしているときに、プレビューが一緒に動かない |
+| 画面は React + Tailwind CSS + Zustand で作る | React は情報と事例が多い。Tailwind は5色の配色を変数で持てる。Zustand はキー操作やサーバーからの通知を React の外から扱え、Provider も要らない |
 | Claude と git の操作は GUI に持たせない | CLI の方が速く、GUI は責務を絞れる |
 | 差分は読み取り専用で残す | 「見る」ための機能だから |
 | 土台はローカルサーバー + ブラウザにする（Tauri・Electron にしない） | WSL で使うため。WSLg 経由のネイティブ画面は日本語入力やフォントで困りやすい。監視と git は Linux 側に置ける |
