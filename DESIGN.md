@@ -165,6 +165,16 @@ Ghostty（WSL）$ cgui .
 - ブラウザでは `Ctrl+T` / `Ctrl+W` などを奪えないため、キー操作は `Alt` 系のままにする（3章）。
 - これが困るときは、同じ画面を Tauri で包む。ファイルの読み書き、監視、git の読み取りは、画面からは1つのインターフェース越しに呼ぶ形にしておき、中身を WebSocket から Tauri のコマンドに差し替えるだけで移れるようにする。
 
+### 配布
+
+GitHub のリポジトリから `npm i -g` で入れてもらう（npm には公開しない）。パッケージ名は `cgui`（npm の `cgui` は別のパッケージが使っているが、公開しないので衝突しない）。コマンド名も `cgui`。
+
+- 非公開のうち: `npm i -g git+ssh://git@github.com/kokuto821/gui-editor.git#v0.1.0`（導入する人に読む権限と SSH 鍵が要る）
+- 公開した後: `npm i -g github:kokuto821/gui-editor#v0.1.0`
+- 版はタグ（`v0.1.0`）で指定する。更新は同じコマンドで新しいタグを指定する。
+- 画面のビルドは `prepare` で行う（git から入れると、npm が devDependencies を入れて `prepare` を走らせる）。
+- 前提: WSL2、Node 20 以上（WSL の中に入れる）。プロジェクトは `/mnt/c` ではなく WSL 側に置く。
+
 ## 7. プロトタイプについて
 
 `prototype.html` は、画面と操作の検討用。次の点は実アプリで作り直す。
