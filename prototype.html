@@ -39,7 +39,10 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 :focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .mut{color:var(--mute)}.a{color:var(--ok)}.d{color:var(--del-ink)}.grow{flex:1}
 
-.app{--lw:300px;--sth:28px;position:relative;height:100%;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:34px 34px minmax(0,1fr) var(--sth)}
+.app{--lw:300px;--tabh:34px;--sth:28px;position:relative;height:100%;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:34px var(--tabh) minmax(0,1fr) var(--sth)}
+.toolbar{grid-row:1}.tabbar{grid-row:2}.files{grid-row:3}.status{grid-row:4}
+.app.no-ptabs{--tabh:0px}.app.no-ptabs .tabbar{display:none}
+.app.no-vtabs .pv-head{display:none}
 .app.no-list .files{grid-template-columns:minmax(0,1fr)}.app.no-list .files > .col,.app.no-list .split{display:none}
 .app.no-status{--sth:0px}.app.no-status .status{display:none}
 
@@ -67,6 +70,11 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .ibtn:hover:not(:disabled){background:var(--accent-soft);color:var(--ink)}
 .ibtn:disabled{opacity:.35;cursor:default}
 .ibtn[aria-pressed="true"]{color:var(--ink)}
+.ibtn.open{background:var(--accent-soft);color:var(--ink)}
+/* 表示するパネル: 表示中はその区画を塗る。隠しているときは区画を点線の枠だけにして、文字も薄くする */
+.rmenu .lay .rg{fill:currentColor;stroke:none}
+.rmenu .lay[aria-checked="false"]{color:var(--mute)}
+.rmenu .lay[aria-checked="false"] .rg{fill:none;stroke:currentColor;stroke-dasharray:1.6 1.4}
 .ibtn .bdg{position:absolute;top:0;right:0;font:500 9px/13px var(--mono);min-width:13px;background:var(--accent);color:var(--panel);border-radius:7px;padding:0 3px}
 .ibtn .bdg:empty{display:none}
 .side{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:0 0 6px;padding:0 2px 6px}
@@ -96,7 +104,23 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 @container (max-width:150px){ .row .rk,.brow .rk{display:none} }
 .rmenu{position:fixed;z-index:20;min-width:160px;padding:4px;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 20px rgba(0,0,0,.12)}
 .rmenu[hidden]{display:none}
-.rmenu button{display:flex;align-items:center;gap:8px;width:100%;padding:4px 8px;border-radius:5px;font-size:13px;color:var(--ink);text-align:left}
+.rmenu hr{border:0;border-top:1px solid var(--line);margin:4px 2px}
+.rmenu .mnote{padding:4px 8px;font-size:12px;color:var(--mute)}
+.rmenu .fav svg{fill:currentColor}
+.rmenu .fav.cur{font-weight:600}
+.rmenu .fav .mp{font:11px var(--mono);color:var(--mute);margin-left:4px;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.rmenu .fav .op{width:6px;height:6px;border-radius:50%;background:var(--mute);margin-left:auto;flex:none}
+.ptab .fv{display:grid;color:var(--mute)}
+.ptab .fv svg{width:11px;height:11px;fill:currentColor}
+.noproj{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--mute);font-size:13px}
+.noproj p{margin:0}
+.noproj button{padding:4px 12px;border:1px solid var(--line);border-radius:6px;color:var(--ink)}
+.noproj button:hover{background:var(--accent-soft)}
+.nfav{display:flex;flex-wrap:wrap;justify-content:center;gap:6px;max-width:420px}
+.nfav button{display:flex;align-items:center;gap:6px;font:12px var(--mono)}
+.nfav svg{width:11px;height:11px;fill:currentColor;color:var(--mute)}
+.app.empty .split{display:none}
+.rmenu button{display:flex;align-items:center;gap:8px;width:100%;padding:4px 8px;border-radius:5px;font-size:13px;color:var(--ink);text-align:left;white-space:nowrap}
 .rmenu button:hover,.rmenu button:focus-visible{background:var(--accent-soft);outline:none}
 .rmenu button.del{color:var(--del-ink)}
 .rmenu button.done{color:var(--ok)}
@@ -198,7 +222,7 @@ iframe.preview{width:100%;height:100%;border:0;background:#fff;display:block}
 .dl.add{background:var(--add-bg)}.dl.del{background:var(--del-bg)}
 
 /* resizable list width */
-.split{position:absolute;top:68px;bottom:var(--sth);width:9px;cursor:col-resize;z-index:5;touch-action:none;outline:none;left:calc(min(var(--lw),100%) - 4px)}
+.split{position:absolute;top:calc(34px + var(--tabh));bottom:var(--sth);width:9px;cursor:col-resize;z-index:5;touch-action:none;outline:none;left:calc(min(var(--lw),100%) - 4px)}
 .split::after{content:"";position:absolute;left:4px;top:0;bottom:0;width:1px;background:transparent}
 .split:hover::after,.split.on::after,.split:focus-visible::after{background:var(--accent);width:2px;left:3px}
 .dragging{cursor:col-resize;user-select:none}
@@ -224,13 +248,12 @@ kbd{font:11px var(--mono);border:1px solid var(--line);border-radius:4px;padding
 <body>
 <div class="app" id="app">
   <div class="toolbar">
-    <button class="ibtn" id="btnNew" aria-label="新しいプロジェクト" title="新しいプロジェクト"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg></button>
+    <button class="ibtn" id="btnNew" aria-haspopup="menu" aria-label="プロジェクトを開く" title="プロジェクトを開く"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg></button>
     <span class="tsep"></span>
     <button class="ibtn" id="btnView"></button>
     <button class="ibtn" id="btnMode"></button>
     <span class="tsep"></span>
-    <button class="ibtn" id="btnList" aria-pressed="true"><svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M6 2.5v11"/></svg></button>
-    <button class="ibtn" id="btnStatus" data-panel="status" aria-pressed="true"><svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 10h12"/></svg></button>
+    <button class="ibtn" id="btnLayout" aria-haspopup="menu" title="表示するパネル" aria-label="表示するパネル"><svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 6h12M6 6v7.5"/></svg></button>
   </div>
   <div class="tabbar">
     <div class="ptabs" id="ptabs" role="tablist" aria-label="プロジェクト"></div>
@@ -361,18 +384,46 @@ function sampleCommits(src){
     {hash:"7be04d8", msg:"初期コミット", when:"5日前", files:[{path:"PLAN.md", a:null, b:src["PLAN.md"]}]}
   ];
 }
-function mk(name, src, fresh){
-  var fs = {};
-  Object.keys(src).forEach(function(k){ fs[k] = {content:src[k], base:fresh ? null : src[k]}; });
-  return {name:name, files:fs, cwd:"", sel:{"":"PLAN.md"}, mode:{}, view:"files", gfocus:"changes",
-          side:"files", vt:["PLAN.md"], vi:0, bm: src["PLAN.md"] !== undefined ? ["PLAN.md"] : [], bmSel:null,
-          gi:{changes:0, commits:0}, commits: fresh ? [] : sampleCommits(src)};
+/* ---------- home (WSL: /home/<user>) ----------
+   プロジェクト = ホーム配下のフォルダ。ファイルの実体は HOME に1つだけ持ち、各プロジェクトはその一部を参照する。 */
+var HOME = {};
+function addHome(prefix, src){ Object.keys(src).forEach(function(k){ HOME[(prefix ? prefix+"/" : "")+k] = {content:src[k], base:src[k]}; }); }
+addHome("workspace/claude-gui", PROJECT_A);
+addHome("workspace/tech-blog", PROJECT_B);
+addHome("", {"notes.md":"# メモ\n\n- ホームのメモ。プロジェクトにしていないものを置く。"});
+/* sample: two uncommitted changes in claude-gui */
+(function(f){ f.base = f.content.replace("- [x] 差分を読み取り専用で見られる","- [ ] 差分を読み取り専用で見られる"); })(HOME["workspace/claude-gui/PLAN.md"]);
+(function(f){ f.base = f.content.split("\n").slice(0,-1).join("\n"); })(HOME["workspace/claude-gui/README.md"]);
+function relOf(root){ return root === "~" ? "" : root.slice(2); }
+function joinRoot(root, rel){ return rel ? (root === "~" ? "~/"+rel : root+"/"+rel) : root; }
+function mk(root){
+  var rel = relOf(root), fs = {}, src = {};
+  Object.keys(HOME).forEach(function(k){
+    if(rel && k.indexOf(rel+"/") !== 0) return;
+    var r = rel ? k.slice(rel.length+1) : k; fs[r] = HOME[k]; src[r] = HOME[k].content;
+  });
+  var plan = !!fs["PLAN.md"];
+  return {name: root === "~" ? "~" : base(root), root:root, files:fs, cwd:"", sel:{"":"PLAN.md"}, mode:{}, view:"files", gfocus:"changes",
+          side:"files", vt:[plan ? "PLAN.md" : ""], vi:0, bm: plan ? ["PLAN.md"] : [], bmSel:null,
+          gi:{changes:0, commits:0}, commits: plan ? sampleCommits(src) : []};
 }
-P.push(mk("claude-gui", PROJECT_A));
-P.push(mk("tech-blog", PROJECT_B));
-/* sample: two uncommitted changes in the first project */
-P[0].files["PLAN.md"].base = P[0].files["PLAN.md"].content.replace("- [x] 差分を読み取り専用で見られる","- [ ] 差分を読み取り専用で見られる");
-P[0].files["README.md"].base = P[0].files["README.md"].content.split("\n").slice(0,-1).join("\n");
+P.push(mk("~/workspace/claude-gui"));
+P.push(mk("~/workspace/tech-blog"));
+/* お気に入りのプロジェクト（フォルダ）。閉じても残り、開き直すと閉じる前の状態に戻る */
+var FAV = [{root:P[0].root, p:P[0]}, {root:P[1].root, p:P[1]}];
+function favIndex(root){ for(var i=0;i<FAV.length;i++) if(FAV[i].root === root) return i; return -1; }
+function openRoot(root){
+  for(var i=0;i<P.length;i++) if(P[i].root === root){ switchTo(i); return; }
+  var fi = favIndex(root), pr = fi >= 0 && FAV[fi].p ? FAV[fi].p : mk(root);
+  if(fi >= 0) FAV[fi].p = pr;
+  P.push(pr); switchTo(P.length-1);
+}
+function toggleFavRoot(root){
+  var i = favIndex(root);
+  if(i >= 0) FAV.splice(i,1);
+  else { var open = null; P.forEach(function(x){ if(x.root === root) open = x; }); FAV.push({root:root, p:open}); }
+  renderTabs();
+}
 function proj(){ return P[cur]; }
 
 /* ---------- helpers ---------- */
@@ -541,10 +592,10 @@ function renderTabs(){
   $("ptabs").innerHTML = P.map(function(p,i){
     var pg = progressOf(p), pct = pg.total ? Math.round(pg.done/pg.total*100) : 0;
     return '<div class="ptab'+(i===cur?" active":"")+'" role="tab" aria-selected="'+(i===cur)+'">' +
-      '<button data-ptab="'+i+'" title="'+ALT+(i+1)+'"><span class="nm">'+esc(p.name)+'</span>' +
+      '<button data-ptab="'+i+'" title="'+esc(p.root)+'  '+ALT+(i+1)+'">'+(favIndex(p.root) >= 0 ? '<span class="fv" aria-label="お気に入り">'+STAR+'</span>' : "")+'<span class="nm">'+esc(p.name)+'</span>' +
       '<span class="mini" title="'+pg.done+'/'+pg.total+'"><i style="width:'+pct+'%"></i></span>' +
       (changedList(p).length && i !== cur ? '<span class="dot"></span>' : "") + '</button>' +
-      (P.length > 1 ? '<button class="x" data-pclose="'+i+'" aria-label="'+esc(p.name)+'を閉じる">×</button>' : '<span style="width:8px"></span>') + '</div>';
+      '<button class="x" data-pclose="'+i+'" aria-label="'+esc(p.name)+'を閉じる">×</button></div>';
   }).join("");
   syncSeg();
 }
@@ -555,11 +606,13 @@ var ICON = {
   edit:'<svg viewBox="0 0 16 16"><path d="M10.5 2.5l3 3L6 13H3v-3z"/></svg>'
 };
 function syncSeg(){
+  if(!P.length){ $("btnView").innerHTML = ICON.files; $("btnView").disabled = true; $("btnMode").innerHTML = ICON.view; $("btnMode").disabled = true; return; }
+  $("btnView").disabled = false;
   var p = proj(), n = changedList(p).length, bv = $("btnView"), bm = $("btnMode");
   var isDiff = p.view === "diff", vl = isDiff ? "差分を表示中（クリックでファイル） v" : "ファイルを表示中（クリックで差分） v";
   bv.innerHTML = ICON[isDiff ? "diff" : "files"] + '<span class="bdg">'+(n ? n : "")+'</span>';
   bv.title = vl; bv.setAttribute("aria-label", vl);
-  var e = isDiff ? null : current(p), ok = !!(e && !e.isDir), mode = ok ? (p.mode[e.path] || "view") : "view";
+  var e = isDiff || !p.vt.length ? null : current(p), ok = !!(e && !e.isDir), mode = ok ? (p.mode[e.path] || "view") : "view";
   var ml = !ok ? "閲覧 / 編集（ファイルを選ぶと使える）" : mode === "edit" ? "編集中（クリックで閲覧） e" : "閲覧中（クリックで編集） e";
   bm.innerHTML = ICON[mode]; bm.disabled = !ok;
   bm.title = ml; bm.setAttribute("aria-label", ml);
@@ -580,15 +633,23 @@ function moreBtn(path){
 var menuFor = null;
 function openMenu(path, anchor){
   var m = $("rmenu"), it = function(k, l, cls){ return '<button role="menuitem" data-act="'+k+'" class="'+(cls||"")+'">'+ACT[k]+'<span>'+l+'</span></button>'; };
-  var has = proj().bm.indexOf(path) >= 0;
+  var pr = proj(), has = pr.bm.indexOf(path) >= 0;
+  if(!pr.files[path]){
+    var root = joinRoot(pr.root, path), fav = favIndex(root) >= 0;
+    m.innerHTML = '<button role="menuitem" data-act="pfav" class="'+(fav ? "bmon" : "")+'">'+STAR+'<span>'+(fav ? "プロジェクトのお気に入りから削除" : "プロジェクトとしてお気に入りに追加")+'</span></button>' +
+      '<button role="menuitem" data-act="popen">'+ICON.files+'<span>プロジェクトとして開く</span></button>' + it("copy","パスをコピー");
+  } else
   m.innerHTML = '<button role="menuitem" data-act="bm" class="'+(has ? "bmon" : "")+'">'+RIBBON+'<span>'+(has ? "ブックマークから削除" : "ブックマークに追加")+'</span></button>' +
     it("rename","名前を変更") + it("copy","パスをコピー") + it("del","削除","del");
-  m.hidden = false; menuFor = {path:path, anchor:anchor}; anchor.classList.add("open");
+  m.hidden = false; menuFor = {kind:"row", path:path, anchor:anchor}; anchor.classList.add("open");
+  placeMenu(m, anchor, "right");
+  m.querySelector("button").focus();
+}
+function placeMenu(m, anchor, align){
   var r = anchor.getBoundingClientRect(), mw = m.offsetWidth, mh = m.offsetHeight;
-  var left = Math.max(8, Math.min(r.right - mw, window.innerWidth - mw - 8));
+  var left = Math.max(8, Math.min(align === "left" ? r.left : r.right - mw, window.innerWidth - mw - 8));
   var top = r.bottom + 4 + mh > window.innerHeight - 8 ? r.top - 4 - mh : r.bottom + 4;
   m.style.left = left+"px"; m.style.top = Math.max(8, top)+"px";
-  m.querySelector("button").focus();
 }
 function closeMenu(){
   var m = $("rmenu"); if(m.hidden) return;
@@ -602,12 +663,11 @@ function sideHtml(p){
 /* ---------- view tabs (preview header) ----------
    アクティブなタブ = 一覧で選んでいるもの。一覧で選び直すと、アクティブなタブの中身が替わる。 */
 function vtHtml(p){
-  var many = p.vt.length > 1;
   return '<div class="vtabs" role="tablist" aria-label="開いているファイル">' + p.vt.map(function(path, i){
     var on = i === p.vi, f = p.files[path], isDir = !f;
     return '<div class="vtab'+(on ? " on" : "")+'" role="tab" aria-selected="'+on+'"><button data-vt="'+i+'" title="'+esc(path)+(isDir ? "/" : "")+'" tabindex="-1">' +
       '<span class="b">'+(isDir ? "▸" : ext(path))+'</span><span class="nm">'+esc(base(path))+(isDir ? "/" : "")+'</span>'+(f && isMod(f) ? '<span class="dot"></span>' : "")+'</button>' +
-      (many ? '<button class="x" data-vtx="'+i+'" tabindex="-1" aria-label="'+esc(base(path))+'のタブを閉じる">×</button>' : "")+'</div>';
+      '<button class="x" data-vtx="'+i+'" tabindex="-1" aria-label="'+esc(base(path))+'のタブを閉じる">×</button></div>';
   }).join("") + '</div><button class="vnew" data-vtnew title="タブを追加" aria-label="タブを追加" tabindex="-1"><svg viewBox="0 0 16 16"><path d="M8 4v8M4 8h8"/></svg></button>';
 }
 function reveal(p, path){
@@ -621,11 +681,19 @@ function showVt(p){
   else { p.side = "files"; reveal(p, path); }
 }
 function switchVt(i){ var p = proj(); if(i === p.vi) return; p.vi = i; showVt(p); renderFiles(); renderStatus(); }
-function newVt(){ var p = proj(); p.vt.splice(p.vi+1, 0, p.vt[p.vi]); p.vi++; renderFiles(); }
+function newVt(){
+  var p = proj(), e = current(p);
+  if(!p.vt.length){ if(e){ p.vt = [e.path]; p.vi = 0; } }
+  else { p.vt.splice(p.vi+1, 0, p.vt[p.vi]); p.vi++; }
+  renderFiles(); renderStatus();
+}
+/* タブが0のときに一覧で選び直したら、タブを1つ作ってそこに出す */
+function touch(p){ if(!p.vt.length){ p.vt = [""]; p.vi = 0; } }
 function closeVt(i){
-  var p = proj(); if(p.vt.length < 2) return;
+  var p = proj();
   p.vt.splice(i,1);
-  if(i < p.vi) p.vi--;
+  if(!p.vt.length){ p.vi = 0; }
+  else if(i < p.vi) p.vi--;
   else if(i === p.vi){ p.vi = Math.min(i, p.vt.length-1); showVt(p); }
   renderFiles(); renderStatus();
 }
@@ -677,8 +745,8 @@ function deletePath(path){
   if(p.bmSel === path) p.bmSel = null;
   var act = p.vt[p.vi], keep = p.vt.filter(function(x){ return x !== path; });
   if(keep.length !== p.vt.length){
-    p.vt = keep.length ? keep : [path];
-    p.vi = act === path ? Math.min(p.vi, p.vt.length-1) : p.vt.indexOf(act);
+    p.vt = keep;
+    p.vi = !keep.length ? 0 : act === path ? Math.min(p.vi, keep.length-1) : keep.indexOf(act);
     if(act === path && keep.length) showVt(p);
   }
   if(p.cwd && !list(p, p.cwd).length){ p.cwd = dirOf(p.cwd); }
@@ -693,7 +761,7 @@ function rowsHtml(p, entries, selName, marks){
       return '<div class="row renaming sel"><span class="b">'+ext(e.name)+'</span><input class="rn" id="rnInput" value="'+esc(e.name)+'" spellcheck="false" aria-label="新しい名前"></div>';
     return '<button class="row'+(e.isDir?" dir":"")+(e.name===selName?" sel":"")+'" data-name="'+esc(e.name)+'" tabindex="-1">' +
       '<span class="b">'+(e.isDir ? "▸" : ext(e.name))+'</span><span class="name">'+esc(e.name)+(e.isDir?"/":"")+'</span>'+meta+
-      (marks && !e.isDir ? moreBtn(e.path) : "")+'</button>';
+      (marks ? moreBtn(e.path) : "")+'</button>';
   }).join("");
 }
 function previewInto(body, p, e){
@@ -725,16 +793,26 @@ function previewInto(body, p, e){
   }
 }
 function renderFiles(){
+  $("app").classList.toggle("empty", !P.length);
+  if(!P.length){
+    closeMenu();
+    $("files").innerHTML = '<div class="noproj"><p>開いているプロジェクトはありません</p>' +
+      (FAV.length ? '<div class="nfav">'+FAV.map(function(f, i){ return '<button data-pfav="'+i+'" title="'+esc(f.root)+'">'+STAR+'<span>'+esc(f.root === "~" ? "~" : base(f.root))+'</span></button>'; }).join("")+'</div>' : "") +
+      '<button data-newproj>新しいプロジェクト（'+ALT+'T）</button></div>';
+    syncSeg(); return;
+  }
   var p = proj();
   if(p.view === "diff"){ renderDiff(p); return; }
   closeMenu();
   var box = $("files"), e = current(p);
-  if(e){ p.vi = Math.max(0, Math.min(p.vi, p.vt.length-1)); p.vt[p.vi] = e.path; }
+  var hasTab = p.vt.length > 0;
+  if(e && hasTab){ p.vi = Math.max(0, Math.min(p.vi, p.vt.length-1)); p.vt[p.vi] = e.path; }
   var rows = p.side === "bm" ? bmRowsHtml(p, e && e.path)
     : e ? rowsHtml(p, list(p, p.cwd), e.name, true) : '<div class="empty">空のフォルダ</div>';
   box.innerHTML = '<div class="col" id="curCol">'+sideHtml(p)+rows+'</div>' +
     '<div class="pv"><div class="pv-head">'+vtHtml(p)+'</div><div class="pv-body" id="pvBody"></div></div>';
-  previewInto($("pvBody"), p, e);
+  if(hasTab) previewInto($("pvBody"), p, e);
+  else $("pvBody").innerHTML = '<div class="empty">開いているファイルはありません</div>';
   syncSeg();
   var rn = $("rnInput");
   if(rn){
@@ -793,6 +871,7 @@ function hintText(p){
   return '<kbd>↑↓</kbd> 移動 <kbd>←→</kbd> 階層 <kbd>e</kbd> 編集 <kbd>d u</kbd> スクロール <kbd>v</kbd> 差分';
 }
 function renderStatus(){
+  if(!P.length){ $("status").innerHTML = '<span class="crumb">プロジェクトなし</span>'; return; }
   var p = proj(), pg = progressOf(p), pct = pg.total ? Math.round(pg.done/pg.total*100) : 0;
   var parts = [p.name];
   if(p.view === "diff"){ parts.push("差分", p.gfocus === "changes" ? "Changes" : "Commits"); }
@@ -815,33 +894,35 @@ function move(d){
   if(p.side === "bm"){
     if(!p.bm.length) return;
     var bi = Math.max(0, p.bm.indexOf(current(p).path)), bn = Math.max(0, Math.min(p.bm.length-1, bi+d));
-    if(bn !== bi){ p.bmSel = p.bm[bn]; renderFiles(); renderStatus(); }
+    if(bn !== bi){ p.bmSel = p.bm[bn]; touch(p); renderFiles(); renderStatus(); }
     return;
   }
   var es = list(p, p.cwd); if(!es.length) return;
   var i = 0; es.forEach(function(e,k){ if(e.name === p.sel[p.cwd]) i = k; });
   var ni = Math.max(0, Math.min(es.length-1, i+d)); if(ni === i) return;
-  p.sel[p.cwd] = es[ni].name; renderFiles(); renderStatus();
+  p.sel[p.cwd] = es[ni].name; touch(p); renderFiles(); renderStatus();
 }
 function jump(end){
   var p = proj();
-  if(p.side === "bm"){ if(p.bm.length){ p.bmSel = p.bm[end ? p.bm.length-1 : 0]; renderFiles(); renderStatus(); } return; }
+  if(p.side === "bm"){ if(p.bm.length){ p.bmSel = p.bm[end ? p.bm.length-1 : 0]; touch(p); renderFiles(); renderStatus(); } return; }
   var es = list(p, p.cwd); if(!es.length) return;
-  p.sel[p.cwd] = es[end ? es.length-1 : 0].name; renderFiles(); renderStatus();
+  p.sel[p.cwd] = es[end ? es.length-1 : 0].name; touch(p); renderFiles(); renderStatus();
 }
 function right(toEdit){
   var p = proj(), e = current(p); if(!e) return;
-  if(e.isDir){ p.cwd = e.path; } else if(toEdit){ p.mode[e.path] = "edit"; } else return;
+  if(e.isDir){ p.cwd = e.path; } else if(toEdit){ touch(p); p.mode[e.path] = "edit"; } else return;
+  touch(p);
   renderFiles(); renderStatus();
 }
 function left(){
   var p = proj();
   if(p.side === "bm" || !p.cwd) return;
-  var parent = dirOf(p.cwd); p.sel[parent] = base(p.cwd); p.cwd = parent;
+  var parent = dirOf(p.cwd); p.sel[parent] = base(p.cwd); p.cwd = parent; touch(p);
   renderFiles(); renderStatus();
 }
 function edit(){
-  var p = proj(), e = current(p); if(!e || e.isDir) return;
+  if(!P.length) return;
+  var p = proj(), e = current(p); if(!e || e.isDir || !p.vt.length) return;
   p.mode[e.path] = (p.mode[e.path]||"view") === "edit" ? "view" : "edit";
   renderFiles(); renderStatus();
 }
@@ -849,7 +930,7 @@ function goTo(p, path){
   if(!p.files[path]) return;
   var parts = path.split("/"), d = "";
   for(var i=0;i<parts.length-1;i++){ p.sel[d] = parts[i]; d = d ? d+"/"+parts[i] : parts[i]; }
-  p.sel[d] = parts[parts.length-1]; p.cwd = d; p.view = "files"; p.side = "files";
+  p.sel[d] = parts[parts.length-1]; p.cwd = d; p.view = "files"; p.side = "files"; touch(p);
   setPane("list"); render();
 }
 function gmove(p, d){
@@ -859,14 +940,11 @@ function gmove(p, d){
 }
 function setView(v){ proj().view = v; setPane("list"); render(); }
 function switchTo(i){ if(i < 0 || i >= P.length) return; cur = i; setPane("list"); render(); }
-function newProject(){
-  seq++;
-  P.push(mk("new-"+seq, {"PLAN.md":"# PLAN\n\n- [ ] 最初のタスクを書く\n- [ ] CLIで進める", "README.md":"# new-"+seq+"\n\n新しいプロジェクト。"}, true));
-  cur = P.length-1; render();
-}
+/* 場所を指定しないで追加したプロジェクトは、ホーム（~）を開く */
+function newProject(){ P.push(mk("~")); switchTo(P.length-1); }
 function closeProject(i){
-  if(P.length < 2) return;
-  P.splice(i,1); cur = Math.min(cur, P.length-1); render();
+  if(!P.length) return;
+  P.splice(i,1); cur = Math.max(0, Math.min(cur, P.length-1)); setPane("list"); render();
 }
 
 /* ---------- events ---------- */
@@ -874,33 +952,62 @@ $("ptabs").addEventListener("click",function(e){
   var c = e.target.closest("[data-pclose]"); if(c){ closeProject(+c.dataset.pclose); return; }
   var t = e.target.closest("[data-ptab]"); if(t) switchTo(+t.dataset.ptab);
 });
-$("btnNew").addEventListener("click",newProject);
-$("btnView").addEventListener("click",function(){ setView(proj().view === "diff" ? "files" : "diff"); });
+$("btnNew").addEventListener("click",function(){ var was = menuFor && menuFor.kind === "proj"; closeMenu(); if(!was) openProjMenu($("btnNew")); });
+$("btnView").addEventListener("click",function(){ if(!P.length) return; setView(proj().view === "diff" ? "files" : "diff"); });
 $("btnMode").addEventListener("click",edit);
 /* ---------- panel visibility ---------- */
-var PANEL = {list:"ファイル一覧", status:"フッター"}, hidden = {};
+var PANEL = {ptabs:"プロジェクトのタブ", list:"ファイル一覧", vtabs:"プレビューのタブ", status:"フッター"}, hidden = {};
+var PANEL_ICON = {
+  ptabs:'<svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path class="rg" d="M3.5 2.5h9a1.5 1.5 0 0 1 1.5 1.5v2H2V4a1.5 1.5 0 0 1 1.5-1.5z"/></svg>',
+  list:'<svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path class="rg" d="M3.5 2.5H6v11H3.5A1.5 1.5 0 0 1 2 12V4a1.5 1.5 0 0 1 1.5-1.5z"/></svg>',
+  vtabs:'<svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M6 2.5v11"/><path class="rg" d="M6 2.5h6.5A1.5 1.5 0 0 1 14 4v2H6z"/></svg>',
+  status:'<svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path class="rg" d="M2 10h12v2a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 12z"/></svg>'
+};
 try{ hidden = JSON.parse(localStorage.getItem("ccg-panels") || "{}") || {}; delete hidden.tabs; }catch(_){ hidden = {}; }
 function applyPanels(){
-  Object.keys(PANEL).forEach(function(k){
-    var on = !hidden[k], b = $(k === "list" ? "btnList" : "btnStatus"), l = PANEL[k]+(on ? "を隠す" : "を表示");
-    $("app").classList.toggle("no-"+k, !on);
-    b.setAttribute("aria-pressed", String(on)); b.title = l; b.setAttribute("aria-label", l);
-  });
+  Object.keys(PANEL).forEach(function(k){ $("app").classList.toggle("no-"+k, !!hidden[k]); });
+  if(menuFor && menuFor.kind === "layout") layoutItems();
+}
+/* 表示するパネルのメニュー。項目のアイコンは、表示中なら区画を塗り、隠していれば点線にする */
+function layoutItems(){
+  var m = $("rmenu"), fi = Array.prototype.indexOf.call(m.querySelectorAll("button"), document.activeElement);
+  m.innerHTML = Object.keys(PANEL).map(function(k){
+    var on = !hidden[k];
+    return '<button role="menuitemcheckbox" class="lay" data-panel="'+k+'" aria-checked="'+on+'">'+PANEL_ICON[k]+'<span>'+PANEL[k]+'</span></button>';
+  }).join("");
+  var bs = m.querySelectorAll("button"); if(fi >= 0 && bs[fi]) bs[fi].focus();
+}
+var STAR = '<svg viewBox="0 0 16 16"><path d="M8 2l1.8 3.8 4.1.5-3 2.9.8 4.1L8 11.3l-3.7 2 .8-4.1-3-2.9 4.1-.5z"/></svg>';
+function openProjMenu(anchor){
+  var m = $("rmenu"), h = "";
+  h += FAV.map(function(f, i){
+    var oi = -1; P.forEach(function(x, k){ if(x.root === f.root) oi = k; });
+    return '<button role="menuitem" class="fav'+(oi >= 0 && oi === cur ? " cur" : "")+'" data-pfav="'+i+'" title="'+esc(f.root)+'">'+STAR+'<span>'+esc(f.root === "~" ? "~" : base(f.root))+'</span><span class="mp">'+esc(f.root)+'</span>'+(oi >= 0 ? '<i class="op" title="開いている"></i>' : "")+'</button>';
+  }).join("");
+  if(!FAV.length) h += '<div class="mnote">お気に入りはありません。フォルダの「…」から追加できます</div>';
+  h += '<hr><button role="menuitem" data-pact="new"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg><span>新しいプロジェクト（~）</span></button>';
+  m.innerHTML = h; m.hidden = false; menuFor = {kind:"proj", anchor:anchor};
+  anchor.classList.add("open"); placeMenu(m, anchor, "left"); m.querySelector("button").focus();
+}
+function openFav(i){ if(FAV[i]) openRoot(FAV[i].root); }
+function openLayoutMenu(anchor){
+  var m = $("rmenu"); menuFor = {kind:"layout", anchor:anchor}; m.hidden = false; layoutItems();
+  anchor.classList.add("open"); placeMenu(m, anchor, "left"); m.querySelector("button").focus();
 }
 function togglePanel(k){
   hidden[k] = !hidden[k]; applyPanels();
   try{ localStorage.setItem("ccg-panels", JSON.stringify(hidden)); }catch(_){}
 }
-$("btnList").addEventListener("click",function(){ togglePanel("list"); });
-$("btnStatus").addEventListener("click",function(){ togglePanel("status"); });
+$("btnLayout").addEventListener("click",function(){ var was = menuFor && menuFor.kind === "layout"; closeMenu(); if(!was) openLayoutMenu($("btnLayout")); });
 applyPanels();
-["btnNew","btnView","btnMode","btnList","btnStatus"].forEach(function(id){ $(id).addEventListener("mousedown",function(e){ e.preventDefault(); }); });
+["btnNew","btnView","btnMode","btnLayout"].forEach(function(id){ $(id).addEventListener("mousedown",function(e){ e.preventDefault(); }); });
 $("files").addEventListener("pointerdown",function(e){
   if(e.target.closest(".pv, .gright")) setPane("preview");
   else if(e.target.closest(".col")) setPane("list");
 });
 $("files").addEventListener("mousedown",function(e){ if(e.target.closest(".rn")) return; if(e.target.closest(".row, .gr, .brow, .side, .pv-head")) e.preventDefault(); });
 $("files").addEventListener("click",function(e){
+  if(!P.length){ var nf = e.target.closest("[data-pfav]"); if(nf) openFav(+nf.dataset.pfav); else if(e.target.closest("[data-newproj]")) newProject(); return; }
   var p = proj();
   if(p.view === "diff"){
     var r = e.target.closest("[data-gi]");
@@ -920,21 +1027,21 @@ $("files").addEventListener("click",function(e){
   var vb = e.target.closest("[data-vt]"); if(vb){ switchVt(+vb.dataset.vt); return; }
   if(e.target.closest("[data-vtnew]")){ newVt(); return; }
   var sd = e.target.closest("[data-side]"); if(sd){ setSide(sd.dataset.side); return; }
-  var mk = e.target.closest("[data-more]");
-  if(mk){ var was = menuFor && menuFor.anchor === mk; closeMenu(); if(!was) openMenu(mk.dataset.more, mk); return; }
+  var mb = e.target.closest("[data-more]");
+  if(mb){ var was = menuFor && menuFor.anchor === mb; closeMenu(); if(!was) openMenu(mb.dataset.more, mb); return; }
   if(e.target.closest(".row.renaming")) return;
   if(p.renaming){ var ri = $("rnInput"); if(ri && !commitRename(p, ri)){ p.renaming = null; renderFiles(); } }
   var bt = e.target.closest("[data-bmt]"); if(bt){ toggleBm(bt.dataset.bmt); return; }
   var bk = e.target.closest("[data-bm]");
   if(bk){
-    var bprev = p.vt[p.vi]; p.bmSel = bk.dataset.bm;
+    var bprev = p.vt[p.vi]; p.bmSel = bk.dataset.bm; touch(p);
     if(isDouble(bk.dataset.bm, bprev)){ openInNewVt(p, bk.dataset.bm); return; }
     renderFiles(); renderStatus(); return;
   }
   var a = e.target.closest("[data-goto]"); if(a){ e.preventDefault(); goTo(p, a.dataset.goto); return; }
   var row = e.target.closest(".row"); if(!row) return;
   var prev = p.vt[p.vi];
-  p.sel[p.cwd] = row.dataset.name;
+  p.sel[p.cwd] = row.dataset.name; touch(p);
   var ce = current(p);
   if(ce.isDir){ p.cwd = ce.path; }
   else if(isDouble(ce.path, prev)){ openInNewVt(p, ce.path); return; }
@@ -963,14 +1070,25 @@ function openInNewVt(p, path){
 
 $("rmenu").addEventListener("mousedown",function(e){ e.preventDefault(); });
 $("rmenu").addEventListener("click",function(e){
+  if(menuFor && menuFor.kind === "proj"){
+    var pf = e.target.closest("[data-pfav]"), pa = e.target.closest("[data-pact]");
+    if(!pf && !pa) return;
+    closeMenu();
+    if(pf) openFav(+pf.dataset.pfav);
+    else if(pa.dataset.pact === "new") newProject();
+    return;
+  }
+  if(menuFor && menuFor.kind === "layout"){ var lb = e.target.closest("[data-panel]"); if(lb) togglePanel(lb.dataset.panel); return; }
   var b = e.target.closest("[data-act]"); if(!b || !menuFor) return;
   var path = menuFor.path, a = b.dataset.act;
   if(a === "copy"){ copyPath(path, b); return; }
   closeMenu();
-  if(a === "bm") toggleBm(path); else if(a === "rename") startRename(path); else if(a === "del") deletePath(path);
+  if(a === "pfav") toggleFavRoot(joinRoot(proj().root, path));
+  else if(a === "popen") openRoot(joinRoot(proj().root, path));
+  else if(a === "bm") toggleBm(path); else if(a === "rename") startRename(path); else if(a === "del") deletePath(path);
 });
 document.addEventListener("pointerdown",function(e){
-  if(menuFor && !e.target.closest("#rmenu, [data-more]")) closeMenu();
+  if(menuFor && !e.target.closest("#rmenu, [data-more], #btnLayout, #btnNew")) closeMenu();
 }, true);
 window.addEventListener("resize",closeMenu);
 document.addEventListener("scroll",closeMenu,true);
@@ -995,6 +1113,7 @@ document.addEventListener("keydown",function(e){
     if(dm){ e.preventDefault(); switchTo(+dm[1]-1); return; }
     return;
   }
+  if(!P.length) return;
   var t = e.target;
   if(t && (t.tagName === "TEXTAREA" || t.tagName === "INPUT")){
     if(e.key === "Escape"){
