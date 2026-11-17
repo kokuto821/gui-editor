@@ -57,7 +57,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .ptab .x{padding:2px 6px;margin-right:6px;font-size:14px;line-height:1;border-radius:4px;opacity:0}
 .ptab:hover .x,.ptab.active .x{opacity:.7}
 .ptab .x:hover{background:var(--code)}
-.dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
 .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;font:12px var(--sans)}
 .seg button{padding:1px 10px;color:var(--mute)}
 .seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
@@ -473,9 +472,6 @@ function current(p){
 /* ---------- git (read only) ---------- */
 function isMod(f){ return f.base !== f.content; }
 function changedList(p){ return Object.keys(p.files).filter(function(k){ return inRoot(p, k) && isMod(p.files[k]); }).sort(); }
-function dirChanged(p, dir){
-  return Object.keys(p.files).some(function(k){ return k.indexOf(dir+"/") === 0 && isMod(p.files[k]); });
-}
 function lines(t){ return (t === null || t === "") ? [] : t.split("\n"); }
 function diffOps(a, b){
   var A = lines(a), B = lines(b), n = A.length, m = B.length, pre = 0, suf = 0, i, j, raw = [];
@@ -587,7 +583,7 @@ function renderTabs(){
   $("ptabs").innerHTML = P.map(function(p,i){
     return '<div class="ptab'+(i===cur?" active":"")+'" role="tab" aria-selected="'+(i===cur)+'">' +
       '<button data-ptab="'+i+'" title="'+esc(p.root)+'  '+ALT+(i+1)+'">'+'<span class="nm">'+esc(p.name)+'</span>' +
-      (changedList(p).length && i !== cur ? '<span class="dot"></span>' : "") + '</button>' +
+      '</button>' +
       '<button class="x" data-pclose="'+i+'" aria-label="'+esc(p.name)+'を閉じる">×</button></div>';
   }).join("");
   syncSeg();
@@ -662,7 +658,7 @@ function vtHtml(p){
   return '<div class="vtabs" role="tablist" aria-label="開いているファイル">' + p.vt.map(function(path, i){
     var on = i === p.vi, f = p.files[path], isDir = !f;
     return '<div class="vtab'+(on ? " on" : "")+'" role="tab" aria-selected="'+on+'"><button data-vt="'+i+'" title="'+esc(disp(p, path))+(isDir ? "/" : "")+'" tabindex="-1">' +
-      '<span class="b">'+(isDir ? "▸" : ext(path))+'</span><span class="nm">'+esc(base(path))+(isDir ? "/" : "")+'</span>'+(f && isMod(f) ? '<span class="dot"></span>' : "")+'</button>' +
+      '<span class="b">'+(isDir ? "▸" : ext(path))+'</span><span class="nm">'+esc(base(path))+(isDir ? "/" : "")+'</span></button>' +
       '<button class="x" data-vtx="'+i+'" tabindex="-1" aria-label="'+esc(base(path))+'のタブを閉じる">×</button></div>';
   }).join("") + '</div><button class="vnew" data-vtnew title="タブを追加" aria-label="タブを追加" tabindex="-1"><svg viewBox="0 0 16 16"><path d="M8 4v8M4 8h8"/></svg></button>';
 }
@@ -794,12 +790,10 @@ function setSide(k){
 }
 function rowsHtml(p, entries, selName, marks){
   return entries.map(function(e){
-    var f = e.isDir ? null : p.files[e.path], meta = "";
-    if((f && isMod(f)) || (e.isDir && dirChanged(p, e.path))) meta += '<span class="dot" title="未コミットの変更"></span>';
     if(marks && p.renaming === e.path)
       return '<div class="row renaming sel'+(e.isDir ? " dir" : "")+'"><span class="b">'+(e.isDir ? "▸" : ext(e.name))+'</span><input class="rn" id="rnInput" value="'+esc(e.name)+'" spellcheck="false" aria-label="新しい名前"></div>';
     return '<button class="row'+(e.isDir?" dir":"")+(e.name===selName?" sel":"")+'" data-name="'+esc(e.name)+'" tabindex="-1">' +
-      '<span class="b">'+(e.isDir ? "▸" : ext(e.name))+'</span><span class="name">'+esc(e.name)+(e.isDir?"/":"")+'</span>'+meta+
+      '<span class="b">'+(e.isDir ? "▸" : ext(e.name))+'</span><span class="name">'+esc(e.name)+(e.isDir?"/":"")+'</span>'+
       (marks ? moreBtn(e.path) : "")+'</button>';
   }).join("");
 }
