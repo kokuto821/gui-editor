@@ -39,7 +39,9 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 :focus-visible{outline:2px solid var(--accent);outline-offset:1px}
 .mut{color:var(--mute)}.a{color:var(--ok)}.d{color:var(--del-ink)}.grow{flex:1}
 
-.app{--lw:300px;position:relative;height:100%;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:34px minmax(0,1fr) 28px}
+.app{--lw:300px;--sth:28px;position:relative;height:100%;display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:34px 34px minmax(0,1fr) var(--sth)}
+.app.no-list .files{grid-template-columns:minmax(0,1fr)}.app.no-list .files > .col,.app.no-list .split{display:none}
+.app.no-status{--sth:0px}.app.no-status .status{display:none}
 
 /* project tabs */
 .tabbar{display:flex;align-items:stretch;background:var(--bg);border-bottom:1px solid var(--line)}
@@ -53,17 +55,21 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .ptab .x{padding:2px 6px;margin-right:6px;font-size:14px;line-height:1;border-radius:4px;opacity:0}
 .ptab:hover .x,.ptab.active .x{opacity:.7}
 .ptab .x:hover{background:var(--code)}
-.tbtn{display:flex;align-items:center;gap:6px;padding:0 12px;color:var(--mute);font-size:12px}
-.tbtn:hover{color:var(--ink)}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
 .mini{width:28px;height:4px;border-radius:2px;background:var(--line);overflow:hidden;flex:none}
 .mini i{display:block;height:100%;background:var(--ok)}
 .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;font:12px var(--sans)}
 .seg button{padding:1px 10px;color:var(--mute)}
 .seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
-.vseg{align-self:center;margin:0 10px}
-.vseg .bdg{font:500 10px var(--mono);background:var(--accent);color:var(--panel);border-radius:8px;padding:0 5px;margin-left:5px}
-.vseg .bdg:empty{display:none}
+.toolbar{display:flex;align-items:center;gap:2px;padding:0 6px;background:var(--bg);border-bottom:1px solid var(--line)}
+.tsep{width:1px;height:16px;background:var(--line);margin:0 6px}
+.ibtn{position:relative;width:30px;height:26px;display:grid;place-items:center;border-radius:6px;color:var(--mute)}
+.ibtn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.ibtn:hover:not(:disabled){background:var(--accent-soft);color:var(--ink)}
+.ibtn:disabled{opacity:.35;cursor:default}
+.ibtn[aria-pressed="true"]{color:var(--ink)}
+.ibtn .bdg{position:absolute;top:0;right:0;font:500 9px/13px var(--mono);min-width:13px;background:var(--accent);color:var(--panel);border-radius:7px;padding:0 3px}
+.ibtn .bdg:empty{display:none}
 
 /* file list | preview */
 .files{background:var(--panel);min-width:0;min-height:0;display:grid;grid-template-columns:min(var(--lw),100%) minmax(0,1fr);grid-template-rows:minmax(0,1fr);overflow:hidden}
@@ -148,7 +154,7 @@ iframe.preview{width:100%;height:100%;border:0;background:#fff;display:block}
 .dl.add{background:var(--add-bg)}.dl.del{background:var(--del-bg)}
 
 /* resizable list width */
-.split{position:absolute;top:34px;bottom:28px;width:9px;cursor:col-resize;z-index:5;touch-action:none;outline:none;left:calc(min(var(--lw),100%) - 4px)}
+.split{position:absolute;top:68px;bottom:var(--sth);width:9px;cursor:col-resize;z-index:5;touch-action:none;outline:none;left:calc(min(var(--lw),100%) - 4px)}
 .split::after{content:"";position:absolute;left:4px;top:0;bottom:0;width:1px;background:transparent}
 .split:hover::after,.split.on::after,.split:focus-visible::after{background:var(--accent);width:2px;left:3px}
 .dragging{cursor:col-resize;user-select:none}
@@ -173,11 +179,17 @@ kbd{font:11px var(--mono);border:1px solid var(--line);border-radius:4px;padding
 </head>
 <body>
 <div class="app" id="app">
+  <div class="toolbar">
+    <button class="ibtn" id="btnNew" aria-label="新しいプロジェクト" title="新しいプロジェクト"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg></button>
+    <span class="tsep"></span>
+    <button class="ibtn" id="btnView"></button>
+    <button class="ibtn" id="btnMode"></button>
+    <span class="tsep"></span>
+    <button class="ibtn" id="btnList" aria-pressed="true"><svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M6 2.5v11"/></svg></button>
+    <button class="ibtn" id="btnStatus" data-panel="status" aria-pressed="true"><svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 10h12"/></svg></button>
+  </div>
   <div class="tabbar">
     <div class="ptabs" id="ptabs" role="tablist" aria-label="プロジェクト"></div>
-    <button class="tbtn" id="btnNew" aria-label="新しいプロジェクト">＋</button>
-    <div class="grow"></div>
-    <div class="seg vseg" id="vseg"><button data-view="files">ファイル</button><button data-view="diff">差分<span class="bdg" id="bdg"></span></button></div>
   </div>
   <main class="files" id="files" aria-label="ファイル"></main>
   <div class="split" id="splitFiles" role="separator" aria-orientation="vertical" aria-label="ファイル一覧の幅" tabindex="0" title="ドラッグで幅を変更（ダブルクリックでリセット）"></div>
@@ -485,10 +497,21 @@ function renderTabs(){
   }).join("");
   syncSeg();
 }
+var ICON = {
+  files:'<svg viewBox="0 0 16 16"><path d="M2 4.5V12.5h12V6H7.5L6 4.5z"/></svg>',
+  diff:'<svg viewBox="0 0 16 16"><path d="M8 2.5v6M5 5.5h6M5 12.5h6"/></svg>',
+  view:'<svg viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></svg>',
+  edit:'<svg viewBox="0 0 16 16"><path d="M10.5 2.5l3 3L6 13H3v-3z"/></svg>'
+};
 function syncSeg(){
-  var p = proj(), n = changedList(p).length;
-  Array.prototype.forEach.call($("vseg").children,function(b){ b.classList.toggle("on", b.dataset.view === p.view); });
-  $("bdg").textContent = n ? String(n) : "";
+  var p = proj(), n = changedList(p).length, bv = $("btnView"), bm = $("btnMode");
+  var isDiff = p.view === "diff", vl = isDiff ? "差分を表示中（クリックでファイル） v" : "ファイルを表示中（クリックで差分） v";
+  bv.innerHTML = ICON[isDiff ? "diff" : "files"] + '<span class="bdg">'+(n ? n : "")+'</span>';
+  bv.title = vl; bv.setAttribute("aria-label", vl);
+  var e = isDiff ? null : current(p), ok = !!(e && !e.isDir), mode = ok ? (p.mode[e.path] || "view") : "view";
+  var ml = !ok ? "閲覧 / 編集（ファイルを選ぶと使える）" : mode === "edit" ? "編集中（クリックで閲覧） e" : "閲覧中（クリックで編集） e";
+  bm.innerHTML = ICON[mode]; bm.disabled = !ok;
+  bm.title = ml; bm.setAttribute("aria-label", ml);
 }
 function rowsHtml(p, entries, selName){
   return entries.map(function(e){
@@ -537,12 +560,11 @@ function renderFiles(){
   if(p.view === "diff"){ renderDiff(p); return; }
   var box = $("files"), e = current(p);
   var rows = e ? rowsHtml(p, list(p, p.cwd), e.name) : '<div class="empty">空のフォルダ</div>';
-  var mode = e ? (p.mode[e.path] || "view") : "view";
   box.innerHTML = '<div class="col" id="curCol">'+rows+'</div>' +
     '<div class="pv"><div class="pv-head"><span class="path">'+(e ? esc(e.path) : "")+'</span>' +
-    (e && !e.isDir ? '<div class="seg"><button data-mode="view" class="'+(mode==="view"?"on":"")+'">閲覧</button><button data-mode="edit" class="'+(mode==="edit"?"on":"")+'">編集</button></div>' : "") +
     '</div><div class="pv-body" id="pvBody"></div></div>';
   previewInto($("pvBody"), p, e);
+  syncSeg();
   var s = box.querySelector(".row.sel"); if(s && s.scrollIntoView) s.scrollIntoView({block:"nearest"});
 }
 function glist(p, key){ return key === "changes" ? changedList(p) : p.commits; }
@@ -580,6 +602,7 @@ function renderDiff(p){
   }).join("");
   box.innerHTML = '<div class="col gcol">' + gpanel(p,"changes","Changes",cr) + gpanel(p,"commits","Commits",hr) + '</div>' +
     '<div class="gright"><section class="gp"><span class="gt"><b>Diff</b></span><div class="gl" id="pvBody">'+diffPaneHtml(p)+'</div></section></div>';
+  syncSeg();
   var s = box.querySelector(".gp.on .gr.sel"); if(s && s.scrollIntoView) s.scrollIntoView({block:"nearest"});
 }
 function hintText(p){
@@ -659,7 +682,26 @@ $("ptabs").addEventListener("click",function(e){
   var t = e.target.closest("[data-ptab]"); if(t) switchTo(+t.dataset.ptab);
 });
 $("btnNew").addEventListener("click",newProject);
-$("vseg").addEventListener("click",function(e){ var b = e.target.closest("[data-view]"); if(b) setView(b.dataset.view); });
+$("btnView").addEventListener("click",function(){ setView(proj().view === "diff" ? "files" : "diff"); });
+$("btnMode").addEventListener("click",edit);
+/* ---------- panel visibility ---------- */
+var PANEL = {list:"ファイル一覧", status:"フッター"}, hidden = {};
+try{ hidden = JSON.parse(localStorage.getItem("ccg-panels") || "{}") || {}; delete hidden.tabs; }catch(_){ hidden = {}; }
+function applyPanels(){
+  Object.keys(PANEL).forEach(function(k){
+    var on = !hidden[k], b = $(k === "list" ? "btnList" : "btnStatus"), l = PANEL[k]+(on ? "を隠す" : "を表示");
+    $("app").classList.toggle("no-"+k, !on);
+    b.setAttribute("aria-pressed", String(on)); b.title = l; b.setAttribute("aria-label", l);
+  });
+}
+function togglePanel(k){
+  hidden[k] = !hidden[k]; applyPanels();
+  try{ localStorage.setItem("ccg-panels", JSON.stringify(hidden)); }catch(_){}
+}
+$("btnList").addEventListener("click",function(){ togglePanel("list"); });
+$("btnStatus").addEventListener("click",function(){ togglePanel("status"); });
+applyPanels();
+["btnNew","btnView","btnMode","btnList","btnStatus"].forEach(function(id){ $(id).addEventListener("mousedown",function(e){ e.preventDefault(); }); });
 $("files").addEventListener("pointerdown",function(e){
   if(e.target.closest(".pv, .gright")) setPane("preview");
   else if(e.target.closest(".col")) setPane("list");
@@ -674,8 +716,6 @@ $("files").addEventListener("click",function(e){
     if(gp){ p.gfocus = gp.dataset.gp; renderDiff(p); renderStatus(); }
     return;
   }
-  var md = e.target.closest("[data-mode]");
-  if(md){ var en = current(p); p.mode[en.path] = md.dataset.mode; renderFiles(); return; }
   var cb = e.target.closest(".cb");
   if(cb){
     var en2 = current(p), f = p.files[en2.path], L = f.content.split("\n"), i = +cb.dataset.line;
