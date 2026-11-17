@@ -58,8 +58,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .ptab:hover .x,.ptab.active .x{opacity:.7}
 .ptab .x:hover{background:var(--code)}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);flex:none}
-.mini{width:28px;height:4px;border-radius:2px;background:var(--line);overflow:hidden;flex:none}
-.mini i{display:block;height:100%;background:var(--ok)}
 .seg{display:flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;font:12px var(--sans)}
 .seg button{padding:1px 10px;color:var(--mute)}
 .seg button.on{background:var(--accent-soft);color:var(--accent);font-weight:600}
@@ -109,9 +107,10 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .rmenu .fav svg{fill:currentColor}
 .rmenu .fav.cur{font-weight:600}
 .rmenu .fav .mp{font:11px var(--mono);color:var(--mute);margin-left:4px;overflow:hidden;text-overflow:ellipsis;max-width:200px}
-.rmenu .fav .op{width:6px;height:6px;border-radius:50%;background:var(--mute);margin-left:auto;flex:none}
-.ptab .fv{display:grid;color:var(--mute)}
-.ptab .fv svg{width:11px;height:11px;fill:currentColor}
+.rmenu .fav .fx{display:grid;place-items:center;width:20px;height:20px;margin-left:auto;border-radius:4px;color:var(--mute);flex:none}
+.rmenu .fav .fx svg{width:12px;height:12px;fill:none}
+.rmenu .fav .fx:hover{background:var(--bg);color:var(--ink)}
+.rmenu .mhead{padding:4px 8px 2px;font-size:11px;font-weight:600;color:var(--mute)}
 .noproj{grid-column:1/-1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--mute);font-size:13px}
 .noproj p{margin:0}
 .noproj button{padding:4px 12px;border:1px solid var(--line);border-radius:6px;color:var(--ink)}
@@ -181,9 +180,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .cb:hover{border-color:var(--accent)}
 .cb.on{background:var(--ok);border-color:var(--ok)}
 .cb.on::after{content:"";position:absolute;left:4px;top:0;width:4px;height:9px;border:solid var(--panel);border-width:0 2px 2px 0;transform:rotate(45deg)}
-.pbar{display:flex;align-items:center;gap:10px;margin:0 0 18px;color:var(--mute);font-size:12px;font-variant-numeric:tabular-nums}
-.pbar .track{flex:1;height:6px;background:var(--line);border-radius:3px;overflow:hidden}
-.pbar .track i{display:block;height:100%;background:var(--ok);transition:width .4s}
 textarea.editor{width:100%;height:100%;border:0;resize:none;background:var(--panel);color:var(--ink);font:13px/1.75 var(--mono);padding:24px max(24px,calc(50% - 360px));outline:none;tab-size:2}
 iframe.preview{width:100%;height:100%;border:0;background:#fff;display:block}
 .codeview{display:grid;grid-template-columns:auto 1fr;font:12.5px/1.7 var(--mono);padding:14px 0 60px;min-width:max-content}
@@ -192,7 +188,11 @@ iframe.preview{width:100%;height:100%;border:0;background:#fff;display:block}
 .k{color:var(--accent);font-weight:500}.s{color:var(--ok)}.c{color:var(--mute);font-style:italic}
 
 /* diff view (read only) */
-.gcol{display:flex;flex-direction:column;gap:14px;padding:14px 12px 10px;overflow:hidden}
+.gcol{display:flex;flex-direction:column;gap:14px;padding:6px 12px 10px;overflow:hidden}
+.gcol .side{margin:0 -6px -6px;flex:none}
+.side button{position:relative}
+.side .bdg{position:absolute;top:-2px;right:-2px;font:500 9px/13px var(--mono);min-width:13px;background:var(--accent);color:var(--panel);border-radius:7px;padding:0 3px}
+.side .bdg:empty{display:none}
 .gp{position:relative;border:1px solid var(--line);border-radius:6px;display:flex;flex-direction:column;min-height:34px;min-width:0}
 .gp.on{border-color:var(--accent)}
 .gt{position:absolute;top:-10px;left:10px;background:var(--panel);padding:0 5px;font:12px/18px var(--mono);color:var(--mute);z-index:2;white-space:nowrap}
@@ -232,8 +232,6 @@ iframe.preview{width:100%;height:100%;border:0;background:#fff;display:block}
 .status{display:flex;align-items:center;gap:16px;padding:0 12px;border-top:1px solid var(--line);background:var(--bg);font-size:12px;color:var(--mute);font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden}
 .status .crumb{font-family:var(--mono);overflow:hidden;text-overflow:ellipsis;min-width:0}
 .status .crumb b{color:var(--ink);font-weight:500}
-.status .pg{display:flex;align-items:center;gap:8px}
-.status .pg .mini{width:64px;height:5px}
 .status .sp{flex:1}
 kbd{font:11px var(--mono);border:1px solid var(--line);border-radius:4px;padding:0 4px;background:var(--panel);color:var(--mute)}
 
@@ -242,7 +240,6 @@ kbd{font:11px var(--mono);border:1px solid var(--line);border-radius:4px;padding
   .hint{display:none}
   .split{display:none}
 }
-@media (prefers-reduced-motion:reduce){.pbar .track i{transition:none}}
 </style>
 </head>
 <body>
@@ -250,13 +247,14 @@ kbd{font:11px var(--mono);border:1px solid var(--line);border-radius:4px;padding
   <div class="toolbar">
     <button class="ibtn" id="btnNew" aria-haspopup="menu" aria-label="プロジェクトを開く" title="プロジェクトを開く"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg></button>
     <span class="tsep"></span>
-    <button class="ibtn" id="btnView"></button>
     <button class="ibtn" id="btnMode"></button>
+    <button class="ibtn" id="btnRoot"><svg viewBox="0 0 16 16"><path d="M2.5 7.5L8 3l5.5 4.5M4 6.5V13h8V6.5"/></svg></button>
     <span class="tsep"></span>
     <button class="ibtn" id="btnLayout" aria-haspopup="menu" title="表示するパネル" aria-label="表示するパネル"><svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 6h12M6 6v7.5"/></svg></button>
   </div>
   <div class="tabbar">
     <div class="ptabs" id="ptabs" role="tablist" aria-label="プロジェクト"></div>
+    <button class="vnew" id="btnPtabNew" title="新しいプロジェクト（~）" aria-label="新しいプロジェクト"><svg viewBox="0 0 16 16"><path d="M8 4v8M4 8h8"/></svg></button>
   </div>
   <main class="files" id="files" aria-label="ファイル"></main>
   <div class="split" id="splitFiles" role="separator" aria-orientation="vertical" aria-label="ファイル一覧の幅" tabindex="0" title="ドラッグで幅を変更（ダブルクリックでリセット）"></div>
@@ -395,21 +393,24 @@ addHome("", {"notes.md":"# メモ\n\n- ホームのメモ。プロジェクト�
 (function(f){ f.base = f.content.replace("- [x] 差分を読み取り専用で見られる","- [ ] 差分を読み取り専用で見られる"); })(HOME["workspace/claude-gui/PLAN.md"]);
 (function(f){ f.base = f.content.split("\n").slice(0,-1).join("\n"); })(HOME["workspace/claude-gui/README.md"]);
 function relOf(root){ return root === "~" ? "" : root.slice(2); }
-function joinRoot(root, rel){ return rel ? (root === "~" ? "~/"+rel : root+"/"+rel) : root; }
+/* パスはすべてホームからの相対パス（"" = ~）。p.files は HOME そのもの。
+   プロジェクトの場所（root）は、開いたときの位置と、差分・進捗・表示の基準に使う。一覧は root より上にも移動できる。 */
 function mk(root){
-  var rel = relOf(root), fs = {}, src = {};
-  Object.keys(HOME).forEach(function(k){
-    if(rel && k.indexOf(rel+"/") !== 0) return;
-    var r = rel ? k.slice(rel.length+1) : k; fs[r] = HOME[k]; src[r] = HOME[k].content;
-  });
-  var plan = !!fs["PLAN.md"];
-  return {name: root === "~" ? "~" : base(root), root:root, files:fs, cwd:"", sel:{"":"PLAN.md"}, mode:{}, view:"files", gfocus:"changes",
-          side:"files", vt:[plan ? "PLAN.md" : ""], vi:0, bm: plan ? ["PLAN.md"] : [], bmSel:null,
-          gi:{changes:0, commits:0}, commits: plan ? sampleCommits(src) : []};
+  var rel = relOf(root), src = {};
+  Object.keys(HOME).forEach(function(k){ if(!rel || k.indexOf(rel+"/") === 0) src[rel ? k.slice(rel.length+1) : k] = HOME[k].content; });
+  var plan = rel ? rel+"/PLAN.md" : "PLAN.md", hasPlan = !!HOME[plan], sel = {};
+  if(rel){ var parts = rel.split("/"), d = ""; parts.forEach(function(x){ sel[d] = x; d = d ? d+"/"+x : x; }); }
+  if(hasPlan) sel[rel] = "PLAN.md";
+  return {name: root === "~" ? "~" : base(root), root:root, files:HOME, cwd:rel, sel:sel, mode:{}, view:"files", gfocus:"changes",
+          side:"files", vt:[hasPlan ? plan : ""], vi:0, bm: hasPlan ? [plan] : [], bmSel:null,
+          gi:{changes:0, commits:0}, commits: hasPlan ? sampleCommits(src) : []};
 }
+function rootRel(p, rel){ var r = relOf(p.root); if(!r) return rel; return rel === r ? "" : rel.indexOf(r+"/") === 0 ? rel.slice(r.length+1) : null; }
+function disp(p, rel){ var x = rootRel(p, rel); return x !== null ? x : (rel ? "~/"+rel : "~"); }
+function inRoot(p, rel){ return rootRel(p, rel) !== null; }
 P.push(mk("~/workspace/claude-gui"));
 P.push(mk("~/workspace/tech-blog"));
-/* お気に入りのプロジェクト（フォルダ）。閉じても残り、開き直すと閉じる前の状態に戻る */
+/* ブックマークしたプロジェクト（フォルダ）。閉じても残り、開き直すと閉じる前の状態に戻る */
 var FAV = [{root:P[0].root, p:P[0]}, {root:P[1].root, p:P[1]}];
 function favIndex(root){ for(var i=0;i<FAV.length;i++) if(FAV[i].root === root) return i; return -1; }
 function openRoot(root){
@@ -436,14 +437,8 @@ function inline(s){
   s = esc(s);
   s = s.replace(/`([^`]+)`/g,"<code>$1</code>");
   s = s.replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>");
-  s = s.replace(/\[\[([^\]]+)\]\]/g,function(_,p){ return proj().files[p] ? '<a href="#" data-goto="'+p+'">'+p+'</a>' : p; });
+  s = s.replace(/\[\[([^\]]+)\]\]/g,function(_,p){ var r = relOf(proj().root), full = r ? r+"/"+p : p; return proj().files[full] ? '<a href="#" data-goto="'+esc(full)+'">'+p+'</a>' : p; });
   return s;
-}
-function progressOf(p){
-  var f = p.files["PLAN.md"]; if(!f) return {done:0,total:0};
-  var done = (f.content.match(/^\s*- \[x\]/gmi)||[]).length;
-  var open = (f.content.match(/^\s*- \[ \]/gm)||[]).length;
-  return {done:done, total:done+open};
 }
 function list(p, dir){
   var seen = {}, out = [];
@@ -477,7 +472,7 @@ function current(p){
 
 /* ---------- git (read only) ---------- */
 function isMod(f){ return f.base !== f.content; }
-function changedList(p){ return Object.keys(p.files).filter(function(k){ return isMod(p.files[k]); }).sort(); }
+function changedList(p){ return Object.keys(p.files).filter(function(k){ return inRoot(p, k) && isMod(p.files[k]); }).sort(); }
 function dirChanged(p, dir){
   return Object.keys(p.files).some(function(k){ return k.indexOf(dir+"/") === 0 && isMod(p.files[k]); });
 }
@@ -590,10 +585,8 @@ function highlight(src){
 /* ---------- rendering ---------- */
 function renderTabs(){
   $("ptabs").innerHTML = P.map(function(p,i){
-    var pg = progressOf(p), pct = pg.total ? Math.round(pg.done/pg.total*100) : 0;
     return '<div class="ptab'+(i===cur?" active":"")+'" role="tab" aria-selected="'+(i===cur)+'">' +
-      '<button data-ptab="'+i+'" title="'+esc(p.root)+'  '+ALT+(i+1)+'">'+(favIndex(p.root) >= 0 ? '<span class="fv" aria-label="お気に入り">'+STAR+'</span>' : "")+'<span class="nm">'+esc(p.name)+'</span>' +
-      '<span class="mini" title="'+pg.done+'/'+pg.total+'"><i style="width:'+pct+'%"></i></span>' +
+      '<button data-ptab="'+i+'" title="'+esc(p.root)+'  '+ALT+(i+1)+'">'+'<span class="nm">'+esc(p.name)+'</span>' +
       (changedList(p).length && i !== cur ? '<span class="dot"></span>' : "") + '</button>' +
       '<button class="x" data-pclose="'+i+'" aria-label="'+esc(p.name)+'を閉じる">×</button></div>';
   }).join("");
@@ -601,17 +594,16 @@ function renderTabs(){
 }
 var ICON = {
   files:'<svg viewBox="0 0 16 16"><path d="M2 4.5V12.5h12V6H7.5L6 4.5z"/></svg>',
-  diff:'<svg viewBox="0 0 16 16"><path d="M8 2.5v6M5 5.5h6M5 12.5h6"/></svg>',
   view:'<svg viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></svg>',
   edit:'<svg viewBox="0 0 16 16"><path d="M10.5 2.5l3 3L6 13H3v-3z"/></svg>'
 };
 function syncSeg(){
-  if(!P.length){ $("btnView").innerHTML = ICON.files; $("btnView").disabled = true; $("btnMode").innerHTML = ICON.view; $("btnMode").disabled = true; return; }
-  $("btnView").disabled = false;
-  var p = proj(), n = changedList(p).length, bv = $("btnView"), bm = $("btnMode");
-  var isDiff = p.view === "diff", vl = isDiff ? "差分を表示中（クリックでファイル） v" : "ファイルを表示中（クリックで差分） v";
-  bv.innerHTML = ICON[isDiff ? "diff" : "files"] + '<span class="bdg">'+(n ? n : "")+'</span>';
-  bv.title = vl; bv.setAttribute("aria-label", vl);
+  var br = $("btnRoot");
+  if(!P.length){ $("btnMode").innerHTML = ICON.view; $("btnMode").disabled = true; br.disabled = true; br.title = "プロジェクトのフォルダへ戻る"; return; }
+  var p = proj(), bm = $("btnMode");
+  var atRoot = p.view === "files" && p.side === "files" && p.cwd === relOf(p.root), rl = "プロジェクトのフォルダへ戻る（"+p.root+"）";
+  br.disabled = atRoot; br.title = rl; br.setAttribute("aria-label", rl);
+  var isDiff = p.view === "diff";
   var e = isDiff || !p.vt.length ? null : current(p), ok = !!(e && !e.isDir), mode = ok ? (p.mode[e.path] || "view") : "view";
   var ml = !ok ? "閲覧 / 編集（ファイルを選ぶと使える）" : mode === "edit" ? "編集中（クリックで閲覧） e" : "閲覧中（クリックで編集） e";
   bm.innerHTML = ICON[mode]; bm.disabled = !ok;
@@ -635,9 +627,10 @@ function openMenu(path, anchor){
   var m = $("rmenu"), it = function(k, l, cls){ return '<button role="menuitem" data-act="'+k+'" class="'+(cls||"")+'">'+ACT[k]+'<span>'+l+'</span></button>'; };
   var pr = proj(), has = pr.bm.indexOf(path) >= 0;
   if(!pr.files[path]){
-    var root = joinRoot(pr.root, path), fav = favIndex(root) >= 0;
-    m.innerHTML = '<button role="menuitem" data-act="pfav" class="'+(fav ? "bmon" : "")+'">'+STAR+'<span>'+(fav ? "プロジェクトのお気に入りから削除" : "プロジェクトとしてお気に入りに追加")+'</span></button>' +
-      '<button role="menuitem" data-act="popen">'+ICON.files+'<span>プロジェクトとして開く</span></button>' + it("copy","パスをコピー");
+    var root = path ? "~/"+path : "~", fav = favIndex(root) >= 0;
+    m.innerHTML = '<button role="menuitem" data-act="pfav" class="'+(fav ? "bmon" : "")+'">'+RIBBON+'<span>'+(fav ? "プロジェクトのブックマークから削除" : "プロジェクトとしてブックマークに追加")+'</span></button>' +
+      '<button role="menuitem" data-act="popen">'+ICON.files+'<span>プロジェクトとして開く</span></button>' +
+      it("rename","名前を変更") + it("copy","パスをコピー") + it("del","削除","del");
   } else
   m.innerHTML = '<button role="menuitem" data-act="bm" class="'+(has ? "bmon" : "")+'">'+RIBBON+'<span>'+(has ? "ブックマークから削除" : "ブックマークに追加")+'</span></button>' +
     it("rename","名前を変更") + it("copy","パスをコピー") + it("del","削除","del");
@@ -656,16 +649,19 @@ function closeMenu(){
   m.hidden = true; if(menuFor && menuFor.anchor) menuFor.anchor.classList.remove("open"); menuFor = null;
 }
 var FILEICON = '<svg viewBox="0 0 16 16"><path d="M4 1.5h5l3 3v10H4z"/><path d="M9 1.5v3h3"/></svg>';
+var GITICON = '<svg viewBox="0 0 16 16"><circle cx="5" cy="3.8" r="1.6"/><circle cx="5" cy="12.2" r="1.6"/><circle cx="11" cy="6" r="1.6"/><path d="M5 5.4v5.2M11 7.6c0 2.2-2 3-5 3.6"/></svg>';
 function sideHtml(p){
-  var b = function(k, icon, l){ return '<button data-side="'+k+'" class="'+(p.side === k ? "on" : "")+'" title="'+l+'" aria-label="'+l+'" aria-pressed="'+(p.side === k)+'" tabindex="-1">'+icon+'</button>'; };
-  return '<div class="side">'+b("bm", RIBBON, "ブックマーク")+b("files", FILEICON, "ファイル")+'</div>';
+  var cur = p.view === "diff" ? "git" : p.side, n = changedList(p).length;
+  var b = function(k, icon, l, extra){ return '<button data-side="'+k+'" class="'+(cur === k ? "on" : "")+'" title="'+l+'" aria-label="'+l+'" aria-pressed="'+(cur === k)+'" tabindex="-1">'+icon+(extra||"")+'</button>'; };
+  return '<div class="side">'+b("bm", RIBBON, "ブックマーク")+b("files", FILEICON, "ファイル") +
+    b("git", GITICON, "Git の差分（v）"+(n ? "・未コミット "+n+" 件" : ""), '<span class="bdg">'+(n ? n : "")+'</span>')+'</div>';
 }
 /* ---------- view tabs (preview header) ----------
    アクティブなタブ = 一覧で選んでいるもの。一覧で選び直すと、アクティブなタブの中身が替わる。 */
 function vtHtml(p){
   return '<div class="vtabs" role="tablist" aria-label="開いているファイル">' + p.vt.map(function(path, i){
     var on = i === p.vi, f = p.files[path], isDir = !f;
-    return '<div class="vtab'+(on ? " on" : "")+'" role="tab" aria-selected="'+on+'"><button data-vt="'+i+'" title="'+esc(path)+(isDir ? "/" : "")+'" tabindex="-1">' +
+    return '<div class="vtab'+(on ? " on" : "")+'" role="tab" aria-selected="'+on+'"><button data-vt="'+i+'" title="'+esc(disp(p, path))+(isDir ? "/" : "")+'" tabindex="-1">' +
       '<span class="b">'+(isDir ? "▸" : ext(path))+'</span><span class="nm">'+esc(base(path))+(isDir ? "/" : "")+'</span>'+(f && isMod(f) ? '<span class="dot"></span>' : "")+'</button>' +
       '<button class="x" data-vtx="'+i+'" tabindex="-1" aria-label="'+esc(base(path))+'のタブを閉じる">×</button></div>';
   }).join("") + '</div><button class="vnew" data-vtnew title="タブを追加" aria-label="タブを追加" tabindex="-1"><svg viewBox="0 0 16 16"><path d="M8 4v8M4 8h8"/></svg></button>';
@@ -700,8 +696,8 @@ function closeVt(i){
 function bmRowsHtml(p, selPath){
   if(!p.bm.length) return '<div class="empty">ブックマークはありません</div>';
   return p.bm.map(function(path){
-    var d = dirOf(path);
-    return '<div class="brow'+(path === selPath ? " on" : "")+'"><button data-bm="'+esc(path)+'" title="'+esc(path)+'" tabindex="-1">' +
+    var d = dirOf(disp(p, path));
+    return '<div class="brow'+(path === selPath ? " on" : "")+'"><button data-bm="'+esc(path)+'" title="'+esc(disp(p, path))+'" tabindex="-1">' +
       '<span class="b">'+ext(path)+'</span><span class="name">'+esc(base(path))+'</span>'+(d ? '<span class="dirp">'+esc(d)+'/</span>' : "")+'</button>' +
       '<span class="rk bx" data-bmt="'+esc(path)+'" role="button" title="ブックマークから削除" aria-label="'+esc(base(path))+'をブックマークから削除">'+ACT.x+'</span></div>';
   }).join("");
@@ -711,14 +707,47 @@ function toggleBm(path){
   if(i >= 0) p.bm.splice(i,1); else p.bm.push(path);
   renderFiles(); renderStatus();
 }
-/* ---------- file operations (prototype: memory only) ---------- */
-function movePath(p, from, to){
-  p.files[to] = p.files[from]; delete p.files[from];
-  if(p.mode[from]){ p.mode[to] = p.mode[from]; delete p.mode[from]; }
-  p.bm = p.bm.map(function(x){ return x === from ? to : x; });
-  if(p.bmSel === from) p.bmSel = to;
-  p.vt = p.vt.map(function(x){ return x === from ? to : x; });
+/* ---------- file operations (prototype: memory only) ----------
+   実体は HOME にある。名前変更・削除は HOME に対して行い、開いている / ブックマークの全プロジェクトに反映する。
+   map(abs) は HOME 内のパスを新しいパスへ写す（削除なら null、対象外ならそのまま）。 */
+function under(abs, target){ return abs === target || abs.indexOf(target+"/") === 0; }
+function applyHomeOp(map){
+  var next = {};
+  Object.keys(HOME).forEach(function(k){ var n = map(k); if(n !== null) next[n] = HOME[k]; });
+  Object.keys(HOME).forEach(function(k){ delete HOME[k]; });
+  Object.keys(next).forEach(function(k){ HOME[k] = next[k]; });     /* p.files は HOME を指すので、中身だけ入れ替える */
+  var all = P.slice();
+  FAV.forEach(function(f){ if(f.p && all.indexOf(f.p) < 0) all.push(f.p); });
+  var gone = [];
+  all.forEach(function(pr){
+    var r = relOf(pr.root), nr = r ? map(r) : "";
+    if(nr === null){ gone.push(pr); return; }
+    if(nr !== r){ pr.root = nr ? "~/"+nr : "~"; pr.name = nr ? base(nr) : "~"; }
+    var mode = {}; Object.keys(pr.mode).forEach(function(k){ var n = map(k); if(n) mode[n] = pr.mode[k]; }); pr.mode = mode;
+    pr.bm = pr.bm.map(map).filter(function(x){ return x; });
+    pr.bmSel = pr.bmSel ? map(pr.bmSel) : null;
+    var act = pr.vt[pr.vi], nvt = [], nvi = 0;
+    pr.vt.forEach(function(x, i){ var n = x ? map(x) : x; if(n === null) return; if(i === pr.vi || x === act) nvi = nvt.length; nvt.push(n); });
+    if(act && map(act) === null) nvi = Math.min(pr.vi, Math.max(0, nvt.length-1));
+    pr.vt = nvt; pr.vi = nvi;
+    var sel = {};
+    Object.keys(pr.sel).forEach(function(d){
+      var nd = d ? map(d) : ""; if(nd === null) return;
+      var full = map(d ? d+"/"+pr.sel[d] : pr.sel[d]); if(full) sel[nd] = base(full);
+    });
+    pr.sel = sel;
+    var cwd = pr.cwd;
+    while(cwd && map(cwd) === null) cwd = dirOf(cwd);
+    pr.cwd = cwd ? map(cwd) : "";
+    pr.renaming = null;
+  });
+  /* プロジェクトのフォルダごと消えたら、そのタブを閉じ、ブックマークからも外す */
+  gone.forEach(function(pr){ var i = P.indexOf(pr); if(i >= 0){ P.splice(i,1); if(cur > i || cur >= P.length) cur = Math.max(0, cur-1); } });
+  FAV = FAV.filter(function(f){ var r = relOf(f.root); return !(r && map(r) === null); }).map(function(f){
+    var r = relOf(f.root), n = r ? map(r) : ""; return {root: n ? "~/"+n : "~", p:f.p && gone.indexOf(f.p) < 0 ? f.p : null};
+  });
 }
+function isDirPath(p, path){ return !p.files[path]; }
 function commitRename(p, input){
   var from = p.renaming; if(!from) return true;
   var name = input.value.trim(), d = dirOf(from), to = d ? d+"/"+name : name, err = "";
@@ -727,7 +756,10 @@ function commitRename(p, input){
   else if(to !== from && (p.files[to] || Object.keys(p.files).some(function(k){ return k.indexOf(to+"/") === 0; }))) err = "同じ名前があります";
   if(err){ input.classList.add("err"); input.title = err; return false; }
   p.renaming = null;
-  if(to !== from){ movePath(p, from, to); p.sel[d] = name; }
+  if(to !== from){
+    var fa = from, ta = to;
+    applyHomeOp(function(k){ return under(k, fa) ? ta + k.slice(fa.length) : k; });
+  }
   renderTabs(); renderFiles(); renderStatus();
   return true;
 }
@@ -738,27 +770,34 @@ function copyPath(path, el){
   try{ navigator.clipboard.writeText(path).then(done, fallback); }catch(_){ fallback(); }
 }
 function deletePath(path){
-  var p = proj();
-  if(!window.confirm(path+" を削除しますか？")) return;
-  delete p.files[path]; delete p.mode[path];
-  var i = p.bm.indexOf(path); if(i >= 0) p.bm.splice(i,1);
-  if(p.bmSel === path) p.bmSel = null;
-  var act = p.vt[p.vi], keep = p.vt.filter(function(x){ return x !== path; });
-  if(keep.length !== p.vt.length){
-    p.vt = keep;
-    p.vi = !keep.length ? 0 : act === path ? Math.min(p.vi, keep.length-1) : keep.indexOf(act);
-    if(act === path && keep.length) showVt(p);
-  }
-  if(p.cwd && !list(p, p.cwd).length){ p.cwd = dirOf(p.cwd); }
-  renderTabs(); renderFiles(); renderStatus();
+  var p = proj(), dir = isDirPath(p, path);
+  var n = dir ? Object.keys(p.files).filter(function(k){ return k.indexOf(path+"/") === 0; }).length : 0;
+  var hit = dir ? P.concat(FAV.map(function(f){ return f.p; })).filter(function(x, i, a){ return x && a.indexOf(x) === i && relOf(x.root) && under(relOf(x.root), path); }) : [];
+  var msg = dir ? path+"/ と中のファイル "+n+" 件を削除しますか？" : path+" を削除しますか？";
+  if(hit.length) msg += "\n（このフォルダを開いているプロジェクト「"+hit.map(function(x){ return x.name; }).join("」「")+"」も閉じます）";
+  if(!window.confirm(msg)) return;
+  var a = path;
+  applyHomeOp(function(k){ return under(k, a) ? null : k; });
+  render();
 }
-function setSide(k){ var p = proj(); if(p.side === k) return; p.side = k; setPane("list"); renderFiles(); renderStatus(); }
+function toRoot(){
+  if(!P.length) return;
+  var p = proj(), r = relOf(p.root);
+  if(p.view === "files" && p.side === "files" && p.cwd === r) return;
+  p.view = "files"; p.side = "files"; p.cwd = r; touch(p); setPane("list"); render();
+}
+function setSide(k){
+  var p = proj();
+  if(k === "git"){ if(p.view !== "diff") setView("diff"); return; }
+  if(p.view === "diff"){ p.side = k; setView("files"); return; }
+  if(p.side === k) return; p.side = k; setPane("list"); renderFiles(); renderStatus();
+}
 function rowsHtml(p, entries, selName, marks){
   return entries.map(function(e){
     var f = e.isDir ? null : p.files[e.path], meta = "";
     if((f && isMod(f)) || (e.isDir && dirChanged(p, e.path))) meta += '<span class="dot" title="未コミットの変更"></span>';
     if(marks && p.renaming === e.path)
-      return '<div class="row renaming sel"><span class="b">'+ext(e.name)+'</span><input class="rn" id="rnInput" value="'+esc(e.name)+'" spellcheck="false" aria-label="新しい名前"></div>';
+      return '<div class="row renaming sel'+(e.isDir ? " dir" : "")+'"><span class="b">'+(e.isDir ? "▸" : ext(e.name))+'</span><input class="rn" id="rnInput" value="'+esc(e.name)+'" spellcheck="false" aria-label="新しい名前"></div>';
     return '<button class="row'+(e.isDir?" dir":"")+(e.name===selName?" sel":"")+'" data-name="'+esc(e.name)+'" tabindex="-1">' +
       '<span class="b">'+(e.isDir ? "▸" : ext(e.name))+'</span><span class="name">'+esc(e.name)+(e.isDir?"/":"")+'</span>'+meta+
       (marks ? moreBtn(e.path) : "")+'</button>';
@@ -778,12 +817,7 @@ function previewInto(body, p, e){
     return;
   }
   if(x === "md"){
-    var head = "";
-    if(e.path === "PLAN.md"){
-      var pg = progressOf(p), pct = pg.total ? Math.round(pg.done/pg.total*100) : 0;
-      head = '<div class="pbar"><div class="track"><i style="width:'+pct+'%"></i></div><span>'+pg.done+' / '+pg.total+' 完了</span></div>';
-    }
-    body.innerHTML = '<article class="doc">'+head+mdRender(f.content)+'</article>';
+    body.innerHTML = '<article class="doc">'+mdRender(f.content)+'</article>';
   } else if(x === "html"){
     body.innerHTML = '<iframe class="preview" sandbox title="'+esc(base(e.path))+'のプレビュー"></iframe>';
     body.firstChild.srcdoc = f.content;
@@ -797,7 +831,7 @@ function renderFiles(){
   if(!P.length){
     closeMenu();
     $("files").innerHTML = '<div class="noproj"><p>開いているプロジェクトはありません</p>' +
-      (FAV.length ? '<div class="nfav">'+FAV.map(function(f, i){ return '<button data-pfav="'+i+'" title="'+esc(f.root)+'">'+STAR+'<span>'+esc(f.root === "~" ? "~" : base(f.root))+'</span></button>'; }).join("")+'</div>' : "") +
+      (FAV.length ? '<div class="nfav">'+FAV.map(function(f, i){ return '<button data-pfav="'+i+'" title="'+esc(f.root)+'">'+RIBBON+'<span>'+esc(f.root === "~" ? "~" : base(f.root))+'</span></button>'; }).join("")+'</div>' : "") +
       '<button data-newproj>新しいプロジェクト（'+ALT+'T）</button></div>';
     syncSeg(); return;
   }
@@ -816,7 +850,7 @@ function renderFiles(){
   syncSeg();
   var rn = $("rnInput");
   if(rn){
-    var dot = rn.value.lastIndexOf(".");
+    var dot = isDirPath(p, p.renaming) ? -1 : rn.value.lastIndexOf(".");
     rn.focus(); rn.setSelectionRange(0, dot > 0 ? dot : rn.value.length);
     rn.addEventListener("keydown",function(ev){
       if(ev.isComposing) return;
@@ -843,7 +877,7 @@ function diffPaneHtml(p){
   if(p.gfocus === "changes"){
     var path = gcur(p, "changes");
     if(!path) return '<div class="empty">変更されたファイルはありません</div>';
-    return '<div class="diff">'+fileDiffHtml(path, p.files[path].base, p.files[path].content)+'</div>';
+    return '<div class="diff">'+fileDiffHtml(disp(p, path), p.files[path].base, p.files[path].content)+'</div>';
   }
   var c = gcur(p, "commits");
   if(!c) return '<div class="empty">コミットがありません</div>';
@@ -855,13 +889,13 @@ function renderDiff(p){
   gcur(p, "changes"); gcur(p, "commits");
   var cr = l.map(function(k,i){
     var f = p.files[k], st = diffStat(diffOps(f.base, f.content)), kind = f.base === null ? "A" : "M";
-    return '<div class="gr'+(i === p.gi.changes ? " sel" : "")+'" data-gi="changes:'+i+'"><span class="st '+kind+'">'+kind+'</span><span class="tx">'+esc(k)+'</span>' +
+    return '<div class="gr'+(i === p.gi.changes ? " sel" : "")+'" data-gi="changes:'+i+'"><span class="st '+kind+'">'+kind+'</span><span class="tx">'+esc(disp(p, k))+'</span>' +
       '<span class="cnt"><span class="a">+'+st.a+'</span><span class="d">−'+st.d+'</span></span></div>';
   }).join("");
   var hr = p.commits.map(function(c,i){
     return '<div class="gr'+(i === p.gi.commits ? " sel" : "")+'" data-gi="commits:'+i+'"><span class="hash">'+c.hash+'</span><span class="tx">'+esc(c.msg)+'</span><span class="mut">'+esc(c.when || "")+'</span></div>';
   }).join("");
-  box.innerHTML = '<div class="col gcol">' + gpanel(p,"changes","Changes",cr) + gpanel(p,"commits","Commits",hr) + '</div>' +
+  box.innerHTML = '<div class="col gcol">' + sideHtml(p) + gpanel(p,"changes","Changes",cr) + gpanel(p,"commits","Commits",hr) + '</div>' +
     '<div class="gright"><section class="gp"><span class="gt"><b>Diff</b></span><div class="gl" id="pvBody">'+diffPaneHtml(p)+'</div></section></div>';
   syncSeg();
   var s = box.querySelector(".gp.on .gr.sel"); if(s && s.scrollIntoView) s.scrollIntoView({block:"nearest"});
@@ -872,19 +906,19 @@ function hintText(p){
 }
 function renderStatus(){
   if(!P.length){ $("status").innerHTML = '<span class="crumb">プロジェクトなし</span>'; return; }
-  var p = proj(), pg = progressOf(p), pct = pg.total ? Math.round(pg.done/pg.total*100) : 0;
+  var p = proj();
   var parts = [p.name];
   if(p.view === "diff"){ parts.push("差分", p.gfocus === "changes" ? "Changes" : "Commits"); }
   else {
-    var e = current(p), dir = p.side === "bm" ? (e ? dirOf(e.path) : "") : p.cwd;
+    var e = current(p), dir = p.side === "bm" ? (e ? dirOf(e.path) : "") : p.cwd, rd = rootRel(p, dir);
     if(p.side === "bm") parts.push("ブックマーク");
-    if(dir) parts = parts.concat(dir.split("/"));
+    if(rd === null){ parts.push("~"); if(dir) parts = parts.concat(dir.split("/")); }   /* プロジェクトの外: ~ から表示 */
+    else if(rd) parts = parts.concat(rd.split("/"));
     if(e) parts.push(e.name);
   }
   var crumb = parts.map(function(s,i){ return i === parts.length-1 ? "<b>"+esc(s)+"</b>" : esc(s); }).join(" / ");
   $("status").innerHTML =
-    '<span class="crumb">'+crumb+'</span><span class="sp"></span><span class="hint">'+hintText(p)+'</span>' +
-    '<span class="pg"><span>進捗 '+pg.done+'/'+pg.total+'</span><span class="mini"><i style="width:'+pct+'%"></i></span></span>';
+    '<span class="crumb">'+crumb+'</span><span class="sp"></span><span class="hint">'+hintText(p)+'</span>';
 }
 function render(){ renderTabs(); renderFiles(); renderStatus(); }
 
@@ -952,9 +986,11 @@ $("ptabs").addEventListener("click",function(e){
   var c = e.target.closest("[data-pclose]"); if(c){ closeProject(+c.dataset.pclose); return; }
   var t = e.target.closest("[data-ptab]"); if(t) switchTo(+t.dataset.ptab);
 });
+$("btnPtabNew").addEventListener("click",newProject);
+$("btnPtabNew").addEventListener("mousedown",function(e){ e.preventDefault(); });
 $("btnNew").addEventListener("click",function(){ var was = menuFor && menuFor.kind === "proj"; closeMenu(); if(!was) openProjMenu($("btnNew")); });
-$("btnView").addEventListener("click",function(){ if(!P.length) return; setView(proj().view === "diff" ? "files" : "diff"); });
 $("btnMode").addEventListener("click",edit);
+$("btnRoot").addEventListener("click",toRoot);
 /* ---------- panel visibility ---------- */
 var PANEL = {ptabs:"プロジェクトのタブ", list:"ファイル一覧", vtabs:"プレビューのタブ", status:"フッター"}, hidden = {};
 var PANEL_ICON = {
@@ -977,16 +1013,19 @@ function layoutItems(){
   }).join("");
   var bs = m.querySelectorAll("button"); if(fi >= 0 && bs[fi]) bs[fi].focus();
 }
-var STAR = '<svg viewBox="0 0 16 16"><path d="M8 2l1.8 3.8 4.1.5-3 2.9.8 4.1L8 11.3l-3.7 2 .8-4.1-3-2.9 4.1-.5z"/></svg>';
-function openProjMenu(anchor){
-  var m = $("rmenu"), h = "";
+function projMenuHtml(){
+  var h = '<div class="mhead">ブックマーク</div>';
   h += FAV.map(function(f, i){
-    var oi = -1; P.forEach(function(x, k){ if(x.root === f.root) oi = k; });
-    return '<button role="menuitem" class="fav'+(oi >= 0 && oi === cur ? " cur" : "")+'" data-pfav="'+i+'" title="'+esc(f.root)+'">'+STAR+'<span>'+esc(f.root === "~" ? "~" : base(f.root))+'</span><span class="mp">'+esc(f.root)+'</span>'+(oi >= 0 ? '<i class="op" title="開いている"></i>' : "")+'</button>';
+    var on = P.length && proj().root === f.root, nm = f.root === "~" ? "~" : base(f.root);
+    return '<button role="menuitem" class="fav'+(on ? " cur" : "")+'" data-pfav="'+i+'" title="'+esc(f.root)+'">'+RIBBON+'<span>'+esc(nm)+'</span><span class="mp">'+esc(f.root)+'</span>' +
+      '<span class="fx" data-pfavx="'+i+'" role="button" title="ブックマークから削除" aria-label="'+esc(nm)+'をブックマークから削除">'+ACT.x+'</span></button>';
   }).join("");
-  if(!FAV.length) h += '<div class="mnote">お気に入りはありません。フォルダの「…」から追加できます</div>';
-  h += '<hr><button role="menuitem" data-pact="new"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg><span>新しいプロジェクト（~）</span></button>';
-  m.innerHTML = h; m.hidden = false; menuFor = {kind:"proj", anchor:anchor};
+  if(!FAV.length) h += '<div class="mnote">フォルダの「…」から追加できます</div>';
+  return h + '<hr><button role="menuitem" data-pact="new"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg><span>新しいプロジェクト（~）</span></button>';
+}
+function openProjMenu(anchor){
+  var m = $("rmenu");
+  m.innerHTML = projMenuHtml(); m.hidden = false; menuFor = {kind:"proj", anchor:anchor};
   anchor.classList.add("open"); placeMenu(m, anchor, "left"); m.querySelector("button").focus();
 }
 function openFav(i){ if(FAV[i]) openRoot(FAV[i].root); }
@@ -1000,7 +1039,7 @@ function togglePanel(k){
 }
 $("btnLayout").addEventListener("click",function(){ var was = menuFor && menuFor.kind === "layout"; closeMenu(); if(!was) openLayoutMenu($("btnLayout")); });
 applyPanels();
-["btnNew","btnView","btnMode","btnLayout"].forEach(function(id){ $(id).addEventListener("mousedown",function(e){ e.preventDefault(); }); });
+["btnNew","btnMode","btnRoot","btnLayout"].forEach(function(id){ $(id).addEventListener("mousedown",function(e){ e.preventDefault(); }); });
 $("files").addEventListener("pointerdown",function(e){
   if(e.target.closest(".pv, .gright")) setPane("preview");
   else if(e.target.closest(".col")) setPane("list");
@@ -1010,6 +1049,7 @@ $("files").addEventListener("click",function(e){
   if(!P.length){ var nf = e.target.closest("[data-pfav]"); if(nf) openFav(+nf.dataset.pfav); else if(e.target.closest("[data-newproj]")) newProject(); return; }
   var p = proj();
   if(p.view === "diff"){
+    var gs = e.target.closest("[data-side]"); if(gs){ setSide(gs.dataset.side); return; }
     var r = e.target.closest("[data-gi]");
     if(r){ var pr = r.dataset.gi.split(":"); p.gfocus = pr[0]; p.gi[pr[0]] = +pr[1]; renderDiff(p); renderStatus(); return; }
     var gp = e.target.closest("[data-gp]");
@@ -1071,6 +1111,8 @@ function openInNewVt(p, path){
 $("rmenu").addEventListener("mousedown",function(e){ e.preventDefault(); });
 $("rmenu").addEventListener("click",function(e){
   if(menuFor && menuFor.kind === "proj"){
+    var px = e.target.closest("[data-pfavx]");
+    if(px){ FAV.splice(+px.dataset.pfavx, 1); $("rmenu").innerHTML = projMenuHtml(); var fb = $("rmenu").querySelector("button"); if(fb) fb.focus(); return; }
     var pf = e.target.closest("[data-pfav]"), pa = e.target.closest("[data-pact]");
     if(!pf && !pa) return;
     closeMenu();
@@ -1081,10 +1123,10 @@ $("rmenu").addEventListener("click",function(e){
   if(menuFor && menuFor.kind === "layout"){ var lb = e.target.closest("[data-panel]"); if(lb) togglePanel(lb.dataset.panel); return; }
   var b = e.target.closest("[data-act]"); if(!b || !menuFor) return;
   var path = menuFor.path, a = b.dataset.act;
-  if(a === "copy"){ copyPath(path, b); return; }
+  if(a === "copy"){ copyPath(disp(proj(), path), b); return; }
   closeMenu();
-  if(a === "pfav") toggleFavRoot(joinRoot(proj().root, path));
-  else if(a === "popen") openRoot(joinRoot(proj().root, path));
+  if(a === "pfav") toggleFavRoot(path ? "~/"+path : "~");
+  else if(a === "popen") openRoot(path ? "~/"+path : "~");
   else if(a === "bm") toggleBm(path); else if(a === "rename") startRename(path); else if(a === "del") deletePath(path);
 });
 document.addEventListener("pointerdown",function(e){
