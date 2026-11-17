@@ -50,7 +50,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .ptab.active{background:var(--accent-soft);color:var(--ink)}
 .ptab.active .x:hover{background:var(--bg)}
 .ptab > button:first-child{display:flex;align-items:center;gap:8px;padding:0 6px 0 12px;height:100%;white-space:nowrap;min-width:0}
-.ptab .n{font:500 10px var(--mono);color:var(--mute);border:1px solid var(--line);border-radius:4px;padding:0 4px;line-height:15px}
 .ptab .nm{overflow:hidden;text-overflow:ellipsis;font-size:13px}
 .ptab .x{padding:2px 6px;margin-right:6px;font-size:14px;line-height:1;border-radius:4px;opacity:0}
 .ptab:hover .x,.ptab.active .x{opacity:.7}
@@ -99,7 +98,6 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .row .b{font:500 9px var(--mono);color:var(--mute);width:22px;flex:none;text-transform:uppercase}
 .row .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .row.dir .name{color:var(--accent)}
-.row .info{font:11px var(--mono);color:var(--mute);margin-left:auto}
 .dim .row{color:var(--mute);pointer-events:none}
 .dim .row.dir .name{color:var(--mute)}
 .pv{display:flex;flex-direction:column;min-width:0;min-height:0;height:100%}
@@ -515,7 +513,7 @@ function renderTabs(){
   $("ptabs").innerHTML = P.map(function(p,i){
     var pg = progressOf(p), pct = pg.total ? Math.round(pg.done/pg.total*100) : 0;
     return '<div class="ptab'+(i===cur?" active":"")+'" role="tab" aria-selected="'+(i===cur)+'">' +
-      '<button data-ptab="'+i+'"><span class="n">'+(i+1)+'</span><span class="nm">'+esc(p.name)+'</span>' +
+      '<button data-ptab="'+i+'" title="'+ALT+(i+1)+'"><span class="nm">'+esc(p.name)+'</span>' +
       '<span class="mini" title="'+pg.done+'/'+pg.total+'"><i style="width:'+pct+'%"></i></span>' +
       (changedList(p).length && i !== cur ? '<span class="dot"></span>' : "") + '</button>' +
       (P.length > 1 ? '<button class="x" data-pclose="'+i+'" aria-label="'+esc(p.name)+'を閉じる">×</button>' : '<span style="width:8px"></span>') + '</div>';
@@ -567,8 +565,6 @@ function setSide(k){ var p = proj(); if(p.side === k) return; p.side = k; setPan
 function rowsHtml(p, entries, selName, marks){
   return entries.map(function(e){
     var f = e.isDir ? null : p.files[e.path], meta = "";
-    if(f) meta += '<span class="info">'+f.content.split("\n").length+' 行</span>';
-    else meta += '<span class="info">'+list(p, e.path).length+' 件</span>';
     if(e.path === "PLAN.md"){
       var pg = progressOf(p), pct = pg.total ? Math.round(pg.done/pg.total*100) : 0;
       meta += '<span class="mini" title="'+pg.done+'/'+pg.total+'"><i style="width:'+pct+'%"></i></span>';
