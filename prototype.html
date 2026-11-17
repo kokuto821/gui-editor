@@ -165,6 +165,11 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .doc p{margin:8px 0}
 .doc code{font:13px var(--mono);background:var(--code);padding:1px 5px;border-radius:4px}
 .doc pre.code{font:12.5px/1.6 var(--mono);background:var(--code);padding:12px 14px;border-radius:8px;overflow:auto;margin:12px 0}
+.mmd{margin:12px 0;overflow:auto;text-align:center;min-height:40px}
+.mmd svg{max-width:100%;height:auto}
+.mmd.wait{color:var(--mute);font-size:12.5px;text-align:left}
+.mmd-err{color:var(--del-ink);font-size:12.5px;margin:0 0 6px;text-align:left;white-space:pre-wrap}
+.mmdview{padding:24px 28px;height:100%;overflow:auto}
 .doc blockquote{margin:12px 0;padding:2px 14px;border-left:3px solid var(--line);color:var(--mute)}
 .doc hr{border:0;border-top:1px solid var(--line);margin:20px 0}
 .doc a{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-soft)}
@@ -322,8 +327,27 @@ var PROJECT_A = {
 "- CLI が変更したファイルは、ファイル監視で自動的に反映する","",
 "## 差分",
 "読み取り専用。作業ツリーの変更とコミット履歴を見るだけにする。","",
+"## ファイルが変わったとき",
+"```mermaid",
+"sequenceDiagram",
+"  participant CLI as CLI（Claude Code）",
+"  participant FS as プロジェクトのファイル",
+"  participant GUI",
+"  CLI->>FS: PLAN.md を書き換える",
+"  FS-->>GUI: ファイル監視で通知",
+"  GUI->>FS: 読み直す",
+"  GUI->>GUI: プレビューを更新",
+"```","",
 "役割分担の図は [[docs/diagram.html]] にある。"].join("\n"),
 "docs/diagram.html": DIAGRAM,
+"docs/flow.mmd": [
+"flowchart LR",
+"  A[cgui .] --> B{サーバーは動いている?}",
+"  B -- はい --> C[タブを追加]",
+"  B -- いいえ --> D[サーバーを起動]",
+"  D --> E[ブラウザを開く]",
+"  C --> F[画面に表示]",
+"  E --> F"].join("\n"),
 "src/main.ts": [
 "import { watchProject } from \"./tree\";","",
 "// CLI（Claude Code や git）が変えたファイルを監視して画面に反映する",
@@ -526,14 +550,65 @@ function fileDiffHtml(path, a, b){
 }
 
 /* ---------- markdown / code ---------- */
+/* ---------- Mermaid: MD の ```mermaid と .mmd / .mermaid を図として表示する。ライブラリは必要になったときに読む ---------- */
+var MMD_URL = "https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.esm.min.mjs";
+var mmdLib = null, mmdSeq = 0, mmdCache = {};
+function isMmd(path){ var x = ext(path); return x === "mmd" || x === "mermaid"; }
+function mmdBox(src){ return '<div class="mmd wait" data-mmd="'+esc(src)+'">図を描いています…</div>'; }
+function mmdTheme(){
+  var cs = getComputedStyle(document.documentElement), v = function(n){ return cs.getPropertyValue(n).trim(); };
+  return { bg:v("--bg"), line:v("--line"), ink:v("--ink"), mute:v("--mute"), soft:v("--accent-soft"), code:v("--code") };
+}
+function loadMermaid(){
+  if(!mmdLib) mmdLib = import(MMD_URL).then(function(m){ return m.default; });
+  return mmdLib;
+}
+function renderMermaid(root){
+  var boxes = root.querySelectorAll(".mmd[data-mmd]");
+  if(!boxes.length) return;
+  var t = mmdTheme(), key = JSON.stringify(t);
+  boxes.forEach(function(box){
+    var src = box.getAttribute("data-mmd"), hit = mmdCache[key+"\n"+src];
+    if(hit){ box.classList.remove("wait"); box.innerHTML = hit; box.removeAttribute("data-mmd"); }
+  });
+  boxes = root.querySelectorAll(".mmd[data-mmd]");
+  if(!boxes.length) return;
+  loadMermaid().then(function(mermaid){
+    mermaid.initialize({ startOnLoad:false, securityLevel:"strict", theme:"base", fontFamily:"IBM Plex Sans JP, sans-serif",
+      themeVariables:{ background:t.bg, primaryColor:t.bg, primaryBorderColor:t.mute, primaryTextColor:t.ink, secondaryColor:t.soft,
+        tertiaryColor:t.code, lineColor:t.mute, textColor:t.ink, noteBkgColor:t.soft, noteTextColor:t.ink, noteBorderColor:t.line,
+        actorBkg:t.bg, actorBorder:t.mute, actorTextColor:t.ink, signalColor:t.mute, signalTextColor:t.ink, edgeLabelBackground:t.bg } });
+    boxes.forEach(function(box){
+      var src = box.getAttribute("data-mmd");
+      box.removeAttribute("data-mmd");
+      mermaid.render("mmd-"+(++mmdSeq), src).then(function(r){
+        mmdCache[key+"\n"+src] = r.svg;
+        box.classList.remove("wait"); box.innerHTML = r.svg;
+      }, function(err){
+        box.classList.remove("wait");
+        box.innerHTML = '<p class="mmd-err">図を描けませんでした: '+esc(String(err && err.message || err).split("\n")[0])+'</p><pre class="code">'+esc(src)+'</pre>';
+        var junk = document.getElementById("dmmd-"+mmdSeq); if(junk) junk.remove();
+      });
+    });
+  }, function(){
+    boxes.forEach(function(box){
+      var src = box.getAttribute("data-mmd") || "";
+      box.classList.remove("wait");
+      box.innerHTML = '<p class="mmd-err">Mermaid を読み込めませんでした（オフライン？）</p><pre class="code">'+esc(src)+'</pre>';
+    });
+  });
+}
+if(window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function(){ if(typeof render === "function") render(); });
 function mdRender(src){
   var L = src.split("\n"), n = L.length, i = 0, out = [], m;
   while(i < n){
     var l = L[i];
     if(/^```/.test(l)){
-      var buf = []; i++;
+      var lang = l.replace(/^```\s*/,"").trim().toLowerCase(), buf = []; i++;
       while(i < n && !/^```/.test(L[i])){ buf.push(L[i]); i++; }
-      i++; out.push('<pre class="code">'+esc(buf.join("\n"))+'</pre>'); continue;
+      i++;
+      out.push(lang === "mermaid" ? mmdBox(buf.join("\n")) : '<pre class="code">'+esc(buf.join("\n"))+'</pre>');
+      continue;
     }
     if((m = l.match(/^(#{1,4})\s+(.*)/))){ out.push("<h"+m[1].length+">"+inline(m[2])+"</h"+m[1].length+">"); i++; continue; }
     if(/^---+\s*$/.test(l)){ out.push("<hr>"); i++; continue; }
@@ -812,6 +887,10 @@ function previewInto(body, p, e){
   }
   if(x === "md"){
     body.innerHTML = '<article class="doc">'+mdRender(f.content)+'</article>';
+    renderMermaid(body);
+  } else if(isMmd(e.path)){
+    body.innerHTML = '<div class="mmdview">'+mmdBox(f.content)+'</div>';
+    renderMermaid(body);
   } else if(x === "html"){
     body.innerHTML = '<iframe class="preview" sandbox title="'+esc(base(e.path))+'のプレビュー"></iframe>';
     body.firstChild.srcdoc = f.content;

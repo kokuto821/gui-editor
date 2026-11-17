@@ -83,7 +83,8 @@ GUI  <--読む・書く-->  プロジェクトのファイル  <--読む・書�
 
 | 種類 | 閲覧 | 編集 |
 | --- | --- | --- |
-| `.md` | 整形表示。チェックボックスはクリックで更新できる | テキスト編集 |
+| `.md` | 整形表示。チェックボックスはクリックで更新できる。` ```mermaid ` のコードブロックは図として表示する | テキスト編集 |
+| `.mmd` `.mermaid` | Mermaid の図として表示する | ソースを編集 |
 | `.html` | サンドボックス化したiframeで表示（図解はここに置く） | ソースを編集 |
 | コード | 行番号付き、簡易ハイライト | テキスト編集 |
 | フォルダ | 中のファイル名を薄く表示 | - |
@@ -120,7 +121,8 @@ GUI  <--読む・書く-->  プロジェクトのファイル  <--読む・書�
 ## 4. ファイルの約束事
 
 - **計画**: `PLAN.md` のチェックボックス（`- [ ]` / `- [x]`）を正とする。画面ではプレビューでチェックを付けられる。進捗バーは出さない。Claude が更新するのも同じ `PLAN.md` なので、画面と会話の二重管理にならない。
-- **図解**: `.html` ファイルとして置く。画面ではスクリプトなしのサンドボックス（`sandbox` 属性）で表示する。
+- **図解**: `.html` ファイルとして置く。画面ではスクリプトなしのサンドボックス（`sandbox` 属性）で表示する。フローチャートやシーケンス図のような定型の図は、Mermaid でも書ける（MD の中の ` ```mermaid `、または `.mmd` ファイル）。
+- **Mermaid の書き損じ**: 図を描けないときは、エラーの1行目とソースをそのまま表示する。
 - **内部リンク**: MD内の `[[docs/diagram.html]]` は、そのファイルへ移動するリンクになる。
 - **未コミットの変更**: 作業ツリーの内容と、最後のコミットの内容を比べて判定する。
 
@@ -150,6 +152,7 @@ Ghostty（WSL）$ cgui .
 | 通信 | WebSocket（読み書きと変更の通知を同じ接続で） | CLI の変更をすぐ画面へ送れる |
 | エディタ | CodeMirror 6（`@codemirror/language-data` で言語を遅延読み込み） | 軽く、必要な機能だけ載せられる。コードは閲覧も readOnly の同じ部品で表示し、MD 内のコードは `@lezer/highlight` で色付けする |
 | MD表示 | markdown-it（`html: false`）+ 自前のプラグイン | 要素ごとにソースの行番号が取れ、チェックを付けたときに `PLAN.md` の書き換える行を特定できる |
+| Mermaid | `mermaid`（図があるときだけ動的 `import()` で読む） | 重いライブラリなので、初回の表示を遅くしない。`securityLevel: "strict"` で描き、配色は CSS 変数から `themeVariables` に渡す（ダークモードの切替で描き直す） |
 | HTMLプレビュー | `iframe` + `sandbox`、別のポート（別オリジン）から配信 | 図解から本体の API に届かないようにする |
 | ファイル監視 | `@parcel/watcher` | CLI の変更を自動反映する。`.git` は `HEAD` と `index` だけ見て、差分の更新に使う |
 | git の読み取り | `git` コマンドの出力を読む（`status --porcelain=v2 -z`、`log`、`diff`） | 実装が小さく、挙動が CLI と一致する |
@@ -192,7 +195,7 @@ dist/                  # 生成物（prepare で作る。コミットしない�
 | 種類 | ライブラリ |
 | --- | --- |
 | サーバー | `node:http`、`sirv`（静的ファイル）、`ws`、`@parcel/watcher`、`valibot`（受け取った要求の確認）。git は `execFile` で直接呼ぶ |
-| 画面 | `react`、`react-dom`、`zustand`、`clsx`、`tailwindcss`、CodeMirror 6、`markdown-it`、`@lezer/highlight`。フォント（IBM Plex）は同梱する |
+| 画面 | `react`、`react-dom`、`zustand`、`clsx`、`tailwindcss`、CodeMirror 6、`markdown-it`、`@lezer/highlight`、`mermaid`。フォント（IBM Plex）は同梱する |
 | 開発 | `vite`、`tsup`（サーバーを `dist/cli.js` 1つにまとめる）、`vitest`、`@playwright/test`、`biome` |
 
 `package.json` のスクリプトは `"build": "vite build && tsup"`、`"prepare": "npm run build"` とする。
@@ -300,6 +303,7 @@ GitHub のリポジトリから `npm i -g` で入れてもらう（npm には公
 - ファイルはメモリ上のサンプルで、保存しない（編集はタブを閉じると消える）。
 - ファイル監視は入っていない（`PLAN.md` の未完了項目に残してある）。
 - git の情報（変更、履歴）は、サンプルデータで再現している。
+- Mermaid は CDN（jsDelivr）から読む。オフラインでは図の代わりにソースを表示する。実アプリでは同梱する。
 - 幅の設定と、パネルの表示 / 非表示だけ、ブラウザのlocalStorageに保存する。ブックマークは保存しない（リロードで初期状態に戻る）。
 - ファイルはサンプルのホーム（`~/workspace/claude-gui`、`~/workspace/tech-blog`、`~/notes.md`）だけ。各プロジェクトは、その一部を参照する。
 
