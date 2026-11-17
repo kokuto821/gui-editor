@@ -64,7 +64,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .vseg .bdg:empty{display:none}
 
 /* file list | preview */
-.files{background:var(--panel);min-width:0;min-height:0;display:grid;grid-template-columns:min(var(--lw),100%) minmax(0,1fr);overflow:hidden}
+.files{background:var(--panel);min-width:0;min-height:0;display:grid;grid-template-columns:min(var(--lw),100%) minmax(0,1fr);grid-template-rows:minmax(0,1fr);overflow:hidden}
 .col{border-right:1px solid var(--line);overflow:auto;padding:6px;min-width:0}
 .row{display:flex;align-items:center;gap:8px;width:100%;text-align:left;padding:3px 8px;border-radius:6px;min-height:28px;color:var(--ink)}
 .row:hover{background:var(--code)}
@@ -79,6 +79,9 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .pv-head{display:flex;align-items:center;gap:10px;padding:0 14px;min-height:36px;border-bottom:1px solid var(--line);font:12px var(--mono);color:var(--mute);white-space:nowrap}
 .pv-head .path{overflow:hidden;text-overflow:ellipsis;flex:1}
 .pv-body{flex:1;min-height:0;overflow:auto;position:relative}
+.files[data-pane="list"] .col:not(.gcol),.files[data-pane="preview"] .pv-head{box-shadow:inset 0 2px 0 var(--accent)}
+.files[data-pane="preview"] .gright .gp{border-color:var(--accent)}
+.files[data-pane="preview"] .gcol .gp.on{border-color:var(--line)}
 .empty{height:100%;display:grid;place-items:center;color:var(--mute);padding:24px;text-align:center}
 
 /* rendered markdown */
@@ -291,6 +294,8 @@ var PROJECT_B = {
 
 /* ---------- state ---------- */
 var P = [], cur = 0, seq = 0;
+var pane = "list"; /* キー操作を受けるペイン: "list" | "preview" */
+function setPane(v){ pane = v; $("files").dataset.pane = v; }
 function sampleCommits(src){
   var rest = Object.keys(src).sort().filter(function(k){ return k !== "PLAN.md"; });
   return [
@@ -508,7 +513,7 @@ function previewInto(body, p, e){
     body.innerHTML = '<textarea class="editor" id="editor" spellcheck="false" aria-label="'+esc(base(e.path))+'を編集"></textarea>';
     var ta = $("editor"); ta.value = f.content;
     ta.addEventListener("input",function(){ f.content = ta.value; renderTabs(); renderStatus(); });
-    ta.focus();
+    ta.focus(); setPane("preview");
     return;
   }
   if(x === "md"){
@@ -628,15 +633,15 @@ function goTo(p, path){
   var parts = path.split("/"), d = "";
   for(var i=0;i<parts.length-1;i++){ p.sel[d] = parts[i]; d = d ? d+"/"+parts[i] : parts[i]; }
   p.sel[d] = parts[parts.length-1]; p.cwd = d; p.view = "files";
-  render();
+  setPane("list"); render();
 }
 function gmove(p, d){
   var l = glist(p, p.gfocus); if(!l.length) return;
   var ni = Math.max(0, Math.min(l.length-1, p.gi[p.gfocus]+d)); if(ni === p.gi[p.gfocus]) return;
   p.gi[p.gfocus] = ni; renderDiff(p); renderStatus();
 }
-function setView(v){ proj().view = v; render(); }
-function switchTo(i){ if(i < 0 || i >= P.length) return; cur = i; render(); }
+function setView(v){ proj().view = v; setPane("list"); render(); }
+function switchTo(i){ if(i < 0 || i >= P.length) return; cur = i; setPane("list"); render(); }
 function newProject(){
   seq++;
   P.push(mk("new-"+seq, {"PLAN.md":"# PLAN\n\n- [ ] 最初のタスクを書く\n- [ ] CLIで進める", "README.md":"# new-"+seq+"\n\n新しいプロジェクト。"}, true));
@@ -654,6 +659,10 @@ $("ptabs").addEventListener("click",function(e){
 });
 $("btnNew").addEventListener("click",newProject);
 $("vseg").addEventListener("click",function(e){ var b = e.target.closest("[data-view]"); if(b) setView(b.dataset.view); });
+$("files").addEventListener("pointerdown",function(e){
+  if(e.target.closest(".pv, .gright")) setPane("preview");
+  else if(e.target.closest(".col")) setPane("list");
+});
 $("files").addEventListener("mousedown",function(e){ if(e.target.closest(".row, .gr")) e.preventDefault(); });
 $("files").addEventListener("click",function(e){
   var p = proj();
@@ -693,7 +702,7 @@ document.addEventListener("keydown",function(e){
   var t = e.target;
   if(t && (t.tagName === "TEXTAREA" || t.tagName === "INPUT")){
     if(e.key === "Escape"){
-      if(t.id === "editor"){ var p0 = proj(), en = current(p0); p0.mode[en.path] = "view"; renderFiles(); }
+      if(t.id === "editor"){ var p0 = proj(), en = current(p0); p0.mode[en.path] = "view"; renderFiles(); setPane("list"); }
       else { t.blur(); }
     }
     return;
@@ -704,6 +713,16 @@ document.addEventListener("keydown",function(e){
   if(k === "v"){ e.preventDefault(); setView(pr.view === "diff" ? "files" : "diff"); return; }
   if(k === "d"){ e.preventDefault(); pv && pv.scrollBy(0,300); return; }
   if(k === "u"){ e.preventDefault(); pv && pv.scrollBy(0,-300); return; }
+  if(pane === "preview"){
+    if(k === "ArrowDown" || k === "j"){ e.preventDefault(); pv && pv.scrollBy(0,40); }
+    else if(k === "ArrowUp" || k === "k"){ e.preventDefault(); pv && pv.scrollBy(0,-40); }
+    else if(k === "Home" || k === "g"){ e.preventDefault(); pv && pv.scrollTo(0,0); }
+    else if(k === "End" || k === "G"){ e.preventDefault(); pv && pv.scrollTo(0,pv.scrollHeight); }
+    else if(k === "Escape"){ e.preventDefault(); setPane("list"); }
+    else if(k === "e" && pr.view !== "diff"){ e.preventDefault(); edit(); }
+    else if(k.indexOf("Arrow") === 0) e.preventDefault();
+    return;
+  }
   if(pr.view === "diff"){
     if(k === "ArrowDown" || k === "j"){ e.preventDefault(); gmove(pr, 1); }
     else if(k === "ArrowUp" || k === "k"){ e.preventDefault(); gmove(pr, -1); }
@@ -752,6 +771,7 @@ function clampW(v){ var t = $("files").getBoundingClientRect().width; return Mat
   });
 })();
 applyW();
+setPane("list");
 render();
 })();
 </script>
