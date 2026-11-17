@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+/* 配色: #FAFAF8 #DADADA #B0B3B8 #43464B #0F1012（ライト・ダークとも）。差分の緑と赤は別に持つ */
+@theme {
+  --color-bg: #fafaf8;
+  --color-line: #dadada;
+  --color-soft: #dadada;
+  --color-mute: #43464b;
+  --color-ink: #0f1012;
+  --color-code: #eaeae9;
+  --color-del-ink: #c23b3b;
+  --font-sans: "IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg: #0f1012;
+    --color-line: #43464b;
+    --color-soft: #43464b;
+    --color-mute: #b0b3b8;
+    --color-ink: #fafaf8;
+    --color-code: #292b2f;
+    --color-del-ink: #ff8a8a;
+    color-scheme: dark;
+  }
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+body {
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font: 14px/1.6 var(--font-sans);
+  overflow: hidden;
+}
+button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+:focus-visible {
+  outline: 2px solid var(--color-ink);
+  outline-offset: 1px;
+}

@@ -1,0 +1,52 @@
+{
+  "name": "cgui",
+  "version": "0.1.0",
+  "description": "ローカルで動く、ファイルを見る・書き換えるためのGUI（Claude Code と git は CLI に任せる）",
+  "type": "module",
+  "license": "MIT",
+  "bin": {
+    "cgui": "./bin/cgui.js"
+  },
+  "files": [
+    "bin",
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "os": [
+    "linux",
+    "darwin"
+  ],
+  "scripts": {
+    "dev:web": "vite",
+    "build": "vite build && tsup",
+    "prepare": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@parcel/watcher": "^2.6.0",
+    "sirv": "^3.0.2",
+    "ws": "^8.23.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/markdown-it": "^14.2.0",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@types/ws": "^8.18.2",
+    "@vitejs/plugin-react": "^6.3.0",
+    "clsx": "^2.1.1",
+    "markdown-it": "^15.0.3",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "tailwindcss": "^4.3.5",
+    "tsup": "^9.0.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0",
+    "zustand": "^5.1.0"
+  }
+}
