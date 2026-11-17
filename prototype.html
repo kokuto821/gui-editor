@@ -181,6 +181,12 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .mmd.wait{color:var(--mute);font-size:12.5px;text-align:left}
 .mmd-err{color:var(--del-ink);font-size:12.5px;margin:0 0 6px;text-align:left;white-space:pre-wrap}
 .mmdview{padding:24px 28px;height:100%;overflow:auto}
+.imgview{height:100%;display:grid;place-items:center;padding:20px;overflow:auto;background:repeating-conic-gradient(var(--code) 0 25%,var(--bg) 0 50%) 0 0/16px 16px}
+.imgview img{max-width:100%;max-height:100%;object-fit:contain;background:var(--bg);box-shadow:0 0 0 1px var(--line)}
+.doc img{max-width:100%;height:auto;border-radius:6px;border:1px solid var(--line);margin:8px 0;display:block}
+.nosupport{height:100%;display:grid;place-content:center;justify-items:center;gap:6px;color:var(--mute);text-align:center;padding:20px}
+.nosupport b{color:var(--ink);font-weight:500}
+.nosupport .meta{font:12px var(--mono)}
 .doc blockquote{margin:12px 0;padding:2px 14px;border-left:3px solid var(--line);color:var(--mute)}
 .doc hr{border:0;border-top:1px solid var(--line);margin:20px 0}
 .doc a{color:var(--accent);text-decoration:none;border-bottom:1px solid var(--accent-soft)}
@@ -337,6 +343,8 @@ var PROJECT_A = {
 "- 計画は `PLAN.md` のチェックボックス",
 "- 図解は `.html` を **サンドボックス化したiframe** で表示",
 "- CLI が変更したファイルは、ファイル監視で自動的に反映する","",
+"## 全体像",
+"![GUI・ファイル・CLI の関係](structure.svg)","",
 "## 差分",
 "読み取り専用。作業ツリーの変更とコミット履歴を見るだけにする。","",
 "## ファイルが変わったとき",
@@ -424,6 +432,12 @@ function addHome(prefix, src){ Object.keys(src).forEach(function(k){ HOME[(prefi
 addHome("workspace/claude-gui", PROJECT_A);
 addHome("workspace/tech-blog", PROJECT_B);
 addHome("", {"notes.md":"# メモ\n\n- ホームのメモ。プロジェクトにしていないものを置く。"});
+/* 画像と、表示に対応していないファイル（テキストではないもの）。中身は読まず、種類とサイズだけ持つ */
+var SVG_FLOW = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 360 90"><rect width="360" height="90" fill="#FAFAF8"/><g fill="none" stroke="#43464B" stroke-width="1.5"><rect x="12" y="25" width="90" height="40" rx="8"/><rect x="135" y="25" width="90" height="40" rx="8"/><rect x="258" y="25" width="90" height="40" rx="8"/><path d="M102 45h33M225 45h33"/></g><g font-family="sans-serif" font-size="12" fill="#0F1012" text-anchor="middle"><text x="57" y="50">GUI</text><text x="180" y="50">ファイル</text><text x="303" y="50">CLI</text></g></svg>';
+function addBin(path, kind, size, url){ HOME[path] = {content:"", base:"", disk:"", kind:kind, size:size, url:url}; }
+addBin("workspace/claude-gui/docs/structure.svg", "image", 640, "data:image/svg+xml;charset=utf-8," + encodeURIComponent(SVG_FLOW));
+addBin("workspace/claude-gui/docs/screenshot.png", "image", 281, "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAKAAAABQCAIAAAARP+ljAAAA4ElEQVR42u3csQkAIAxFwewm2LisYON42SFFEDmw//CuDcaYq/z2ueVnt2c3hAYsNGChAQMGbBewXcB2AQMWGrDQgIUGbBewXcB2AQMWGrDQgIUGDLgVWKy/dwEDFhqw0IABA7YL2C5gu4ABCw1YaMBCA7YL2C5gu4ABCw1YaMBCAwbcCyyWq0qhAQsNGDBgu4DtArYLGLDQgIUGLDRgu4DtArYLGLDQgIUGLDRgwIDt+ifLrqtKu4ABCw1YaMBCA7YL2C5gu4ABCw1YaMBCA7YL2C5gu4ABCw1YaMBCP7ibqFxbSI51pM0AAAAASUVORK5CYII=");
+addBin("workspace/claude-gui/docs/session.bin", "binary", 48213);
 /* sample: two uncommitted changes in claude-gui */
 (function(f){ f.base = f.disk.replace("- [x] 差分を読み取り専用で見られる","- [ ] 差分を読み取り専用で見られる"); })(HOME["workspace/claude-gui/PLAN.md"]);
 (function(f){ f.base = f.disk.split("\n").slice(0,-1).join("\n"); })(HOME["workspace/claude-gui/README.md"]);
@@ -432,7 +446,7 @@ function relOf(root){ return root === "~" ? "" : root.slice(2); }
    プロジェクトの場所（root）は、開いたときの位置と、差分・進捗・表示の基準に使う。一覧は root より上にも移動できる。 */
 function mk(root){
   var rel = relOf(root), src = {};
-  Object.keys(HOME).forEach(function(k){ if(!rel || k.indexOf(rel+"/") === 0) src[rel ? k.slice(rel.length+1) : k] = HOME[k].content; });
+  Object.keys(HOME).forEach(function(k){ if(!rel || k.indexOf(rel+"/") === 0) if(!HOME[k].kind) src[rel ? k.slice(rel.length+1) : k] = HOME[k].content; });
   var plan = rel ? rel+"/PLAN.md" : "PLAN.md", hasPlan = !!HOME[plan], sel = {};
   if(rel){ var parts = rel.split("/"), d = ""; parts.forEach(function(x){ sel[d] = x; d = d ? d+"/"+x : x; }); }
   if(hasPlan) sel[rel] = "PLAN.md";
@@ -468,8 +482,18 @@ function esc(s){ return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/
 function ext(p){ var m = p.match(/\.([^.]+)$/); return m ? m[1].toLowerCase() : ""; }
 function base(p){ return p.split("/").pop(); }
 function dirOf(p){ var i = p.lastIndexOf("/"); return i < 0 ? "" : p.slice(0,i); }
+var MD_DIR = "";   /* 表示中の MD のフォルダ（画像の相対パスの基準） */
+function resolvePath(dir, rel){
+  var out = dir ? dir.split("/") : [];
+  rel.split("/").forEach(function(x){ if(x === "" || x === ".") return; if(x === ".."){ if(!out.length) out = null; else out.pop(); } else if(out) out.push(x); });
+  return out ? out.join("/") : null;
+}
 function inline(s){
   s = esc(s);
+  s = s.replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g,function(_,alt,src){
+    var full = /^[a-z]+:/i.test(src) ? null : resolvePath(MD_DIR, src), f = full && proj().files[full];
+    return f && f.kind === "image" ? '<img src="'+f.url+'" alt="'+alt+'">' : '<span class="mut">（画像を表示できません: '+(alt || src)+'）</span>';
+  });
   s = s.replace(/`([^`]+)`/g,"<code>$1</code>");
   s = s.replace(/\*\*([^*]+)\*\*/g,"<strong>$1</strong>");
   s = s.replace(/\[\[([^\]]+)\]\]/g,function(_,p){ var r = relOf(proj().root), full = r ? r+"/"+p : p; return proj().files[full] ? '<a href="#" data-goto="'+esc(full)+'">'+p+'</a>' : p; });
@@ -740,7 +764,7 @@ function syncSeg(){
   var atRoot = p.view === "files" && p.side === "files" && p.cwd === relOf(p.root), rl = "プロジェクトのフォルダへ戻る（"+p.root+"）";
   br.disabled = atRoot; br.title = rl; br.setAttribute("aria-label", rl);
   var isDiff = p.view === "diff";
-  var e = isDiff || !p.vt.length ? null : current(p), ok = !!(e && !e.isDir), mode = ok ? (p.mode[e.path] || "view") : "view";
+  var e = isDiff || !p.vt.length ? null : current(p), ok = !!(e && !e.isDir && !p.files[e.path].kind), mode = ok ? (p.mode[e.path] || "view") : "view";
   var ml = !ok ? "閲覧 / 編集（ファイルを選ぶと使える）" : mode === "edit" ? "編集中（クリックで閲覧） e" : "閲覧中（クリックで編集） e";
   bm.innerHTML = ICON[mode]; bm.disabled = !ok;
   bm.title = ml; bm.setAttribute("aria-label", ml);
@@ -946,12 +970,20 @@ function rowsHtml(p, entries, selName, marks){
       (marks ? moreBtn(e.path) : "")+'</button>';
   }).join("");
 }
+function fmtSize(n){ return n < 1024 ? n+" B" : n < 1048576 ? (n/1024).toFixed(1)+" KB" : (n/1048576).toFixed(1)+" MB"; }
 function previewInto(body, p, e){
   if(!e){ body.innerHTML = '<div class="empty">ファイルがありません</div>'; return; }
   if(e.isDir){
     body.innerHTML = '<div class="col dim" style="border:0">'+rowsHtml(p, list(p,e.path), "")+'</div>'; return;
   }
   var f = p.files[e.path], x = ext(e.path);
+  if(f.kind === "image"){
+    body.innerHTML = '<div class="imgview"><img alt="'+esc(base(e.path))+'"></div>';
+    body.querySelector("img").src = f.url; return;
+  }
+  if(f.kind){
+    body.innerHTML = '<div class="nosupport"><b>このファイルは表示に対応していません</b><span class="meta">'+esc(base(e.path))+' ・ '+(x ? x.toUpperCase()+" ・ " : "")+fmtSize(f.size)+'</span></div>'; return;
+  }
   if((p.mode[e.path]||"view") === "edit"){
     body.innerHTML = '<textarea class="editor" id="editor" spellcheck="false" aria-label="'+esc(base(e.path))+'を編集"></textarea>';
     var ta = $("editor"); ta.value = f.content;
@@ -960,6 +992,7 @@ function previewInto(body, p, e){
     return;
   }
   if(x === "md"){
+    MD_DIR = dirOf(e.path);
     body.innerHTML = '<article class="doc">'+mdRender(f.content)+'</article>';
     renderMermaid(body);
   } else if(isMmd(e.path)){
@@ -1105,7 +1138,7 @@ function left(){
 }
 function edit(){
   if(!P.length) return;
-  var p = proj(), e = current(p); if(!e || e.isDir || !p.vt.length) return;
+  var p = proj(), e = current(p); if(!e || e.isDir || !p.vt.length || p.files[e.path].kind) return;
   p.mode[e.path] = (p.mode[e.path]||"view") === "edit" ? "view" : "edit";
   renderFiles(); renderStatus();
 }
