@@ -70,6 +70,25 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .ibtn[aria-pressed="true"]{color:var(--ink)}
 .ibtn .bdg{position:absolute;top:0;right:0;font:500 9px/13px var(--mono);min-width:13px;background:var(--accent);color:var(--panel);border-radius:7px;padding:0 3px}
 .ibtn .bdg:empty{display:none}
+.side{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:0 0 6px;padding:0 2px 6px}
+.side button{display:grid;place-items:center;width:28px;height:24px;border-radius:6px;color:var(--mute)}
+.side button:hover{color:var(--ink)}
+.side button.on{background:var(--accent-soft);color:var(--ink)}
+.side svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round;stroke-linecap:round}
+.brow{display:flex;align-items:center;border-radius:6px;min-height:28px;color:var(--ink)}
+.brow:hover{background:var(--code)}
+.brow.on{background:var(--accent-soft);font-weight:500}
+.brow > button:first-child{display:flex;align-items:center;gap:8px;flex:1;min-width:0;height:100%;padding:3px 8px;text-align:left}
+.brow .b{font:500 9px var(--mono);color:var(--mute);width:22px;flex:none;text-transform:uppercase}
+.brow .name{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.brow .dirp{font:11px var(--mono);color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:40%}
+.rb{display:grid;place-items:center;width:22px;height:22px;flex:none;border-radius:4px;color:var(--mute);opacity:0;cursor:pointer}
+.rb svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round}
+.rb.on{opacity:1;color:var(--ink)}.rb.on svg{fill:currentColor}
+.row:hover .rb,.brow:hover .rb{opacity:1}
+.rb:hover{background:var(--accent-soft)}
+.row.sel .rb:hover,.brow.on .rb:hover{background:var(--bg)}
+.brow .rb{margin-right:3px}
 
 /* file list | preview */
 .files{background:var(--panel);min-width:0;min-height:0;display:grid;grid-template-columns:min(var(--lw),100%) minmax(0,1fr);grid-template-rows:minmax(0,1fr);overflow:hidden}
@@ -320,6 +339,7 @@ function mk(name, src, fresh){
   var fs = {};
   Object.keys(src).forEach(function(k){ fs[k] = {content:src[k], base:fresh ? null : src[k]}; });
   return {name:name, files:fs, cwd:"", sel:{"":"PLAN.md"}, mode:{}, view:"files", gfocus:"changes",
+          side:"files", bm: src["PLAN.md"] !== undefined ? ["PLAN.md"] : [], bmSel:null,
           gi:{changes:0, commits:0}, commits: fresh ? [] : sampleCommits(src)};
 }
 P.push(mk("claude-gui", PROJECT_A));
@@ -367,6 +387,11 @@ function list(p, dir){
   return out;
 }
 function current(p){
+  if(p.side === "bm"){
+    if(!p.bm.length) return null;
+    if(p.bm.indexOf(p.bmSel) < 0) p.bmSel = p.bm[0];
+    return {name:base(p.bmSel), isDir:false, path:p.bmSel};
+  }
   var es = list(p, p.cwd); if(!es.length) return null;
   var e = es.filter(function(x){ return x.name === p.sel[p.cwd]; })[0];
   if(!e){ e = es[0]; p.sel[p.cwd] = e.name; }
@@ -513,7 +538,33 @@ function syncSeg(){
   bm.innerHTML = ICON[mode]; bm.disabled = !ok;
   bm.title = ml; bm.setAttribute("aria-label", ml);
 }
-function rowsHtml(p, entries, selName){
+/* ---------- bookmarks ---------- */
+var RIBBON = '<svg viewBox="0 0 16 16"><path d="M4 2.5h8v11l-4-3-4 3z"/></svg>';
+function bmMark(p, path){
+  var has = p.bm.indexOf(path) >= 0, l = esc(base(path))+(has ? "のしおりを外す" : "にしおりを挟む");
+  return '<span class="rb'+(has?" on":"")+'" data-bmt="'+esc(path)+'" role="button" title="'+(has ? "しおりを外す" : "しおりを挟む")+'" aria-label="'+l+'">'+RIBBON+'</span>';
+}
+var FILEICON = '<svg viewBox="0 0 16 16"><path d="M4 1.5h5l3 3v10H4z"/><path d="M9 1.5v3h3"/></svg>';
+function sideHtml(p){
+  var b = function(k, icon, l){ return '<button data-side="'+k+'" class="'+(p.side === k ? "on" : "")+'" title="'+l+'" aria-label="'+l+'" aria-pressed="'+(p.side === k)+'" tabindex="-1">'+icon+'</button>'; };
+  return '<div class="side">'+b("bm", RIBBON, "しおり")+b("files", FILEICON, "ファイル")+'</div>';
+}
+function bmRowsHtml(p, selPath){
+  if(!p.bm.length) return '<div class="empty">しおりはありません</div>';
+  return p.bm.map(function(path){
+    var d = dirOf(path);
+    return '<div class="brow'+(path === selPath ? " on" : "")+'"><button data-bm="'+esc(path)+'" title="'+esc(path)+'" tabindex="-1">' +
+      '<span class="b">'+ext(path)+'</span><span class="name">'+esc(base(path))+'</span>'+(d ? '<span class="dirp">'+esc(d)+'/</span>' : "")+'</button>' +
+      bmMark(p, path)+'</div>';
+  }).join("");
+}
+function toggleBm(path){
+  var p = proj(), i = p.bm.indexOf(path);
+  if(i >= 0) p.bm.splice(i,1); else p.bm.push(path);
+  renderFiles(); renderStatus();
+}
+function setSide(k){ var p = proj(); if(p.side === k) return; p.side = k; setPane("list"); renderFiles(); renderStatus(); }
+function rowsHtml(p, entries, selName, marks){
   return entries.map(function(e){
     var f = e.isDir ? null : p.files[e.path], meta = "";
     if(f) meta += '<span class="info">'+f.content.split("\n").length+' 行</span>';
@@ -524,7 +575,7 @@ function rowsHtml(p, entries, selName){
     }
     if((f && isMod(f)) || (e.isDir && dirChanged(p, e.path))) meta += '<span class="dot" title="未コミットの変更"></span>';
     return '<button class="row'+(e.isDir?" dir":"")+(e.name===selName?" sel":"")+'" data-name="'+esc(e.name)+'" tabindex="-1">' +
-      '<span class="b">'+(e.isDir ? "▸" : ext(e.name))+'</span><span class="name">'+esc(e.name)+(e.isDir?"/":"")+'</span>'+meta+'</button>';
+      '<span class="b">'+(e.isDir ? "▸" : ext(e.name))+'</span><span class="name">'+esc(e.name)+(e.isDir?"/":"")+'</span>'+meta+(marks && !e.isDir ? bmMark(p, e.path) : "")+'</button>';
   }).join("");
 }
 function previewInto(body, p, e){
@@ -559,13 +610,14 @@ function renderFiles(){
   var p = proj();
   if(p.view === "diff"){ renderDiff(p); return; }
   var box = $("files"), e = current(p);
-  var rows = e ? rowsHtml(p, list(p, p.cwd), e.name) : '<div class="empty">空のフォルダ</div>';
-  box.innerHTML = '<div class="col" id="curCol">'+rows+'</div>' +
+  var rows = p.side === "bm" ? bmRowsHtml(p, e && e.path)
+    : e ? rowsHtml(p, list(p, p.cwd), e.name, true) : '<div class="empty">空のフォルダ</div>';
+  box.innerHTML = '<div class="col" id="curCol">'+sideHtml(p)+rows+'</div>' +
     '<div class="pv"><div class="pv-head"><span class="path">'+(e ? esc(e.path) : "")+'</span>' +
     '</div><div class="pv-body" id="pvBody"></div></div>';
   previewInto($("pvBody"), p, e);
   syncSeg();
-  var s = box.querySelector(".row.sel"); if(s && s.scrollIntoView) s.scrollIntoView({block:"nearest"});
+  var s = box.querySelector(".row.sel, .brow.on"); if(s && s.scrollIntoView) s.scrollIntoView({block:"nearest"});
 }
 function glist(p, key){ return key === "changes" ? changedList(p) : p.commits; }
 function gcur(p, key){
@@ -614,8 +666,9 @@ function renderStatus(){
   var parts = [p.name];
   if(p.view === "diff"){ parts.push("差分", p.gfocus === "changes" ? "Changes" : "Commits"); }
   else {
-    var e = current(p);
-    if(p.cwd) parts = parts.concat(p.cwd.split("/"));
+    var e = current(p), dir = p.side === "bm" ? (e ? dirOf(e.path) : "") : p.cwd;
+    if(p.side === "bm") parts.push("しおり");
+    if(dir) parts = parts.concat(dir.split("/"));
     if(e) parts.push(e.name);
   }
   var crumb = parts.map(function(s,i){ return i === parts.length-1 ? "<b>"+esc(s)+"</b>" : esc(s); }).join(" / ");
@@ -627,13 +680,22 @@ function render(){ renderTabs(); renderFiles(); renderStatus(); }
 
 /* ---------- navigation ---------- */
 function move(d){
-  var p = proj(), es = list(p, p.cwd); if(!es.length) return;
+  var p = proj();
+  if(p.side === "bm"){
+    if(!p.bm.length) return;
+    var bi = Math.max(0, p.bm.indexOf(current(p).path)), bn = Math.max(0, Math.min(p.bm.length-1, bi+d));
+    if(bn !== bi){ p.bmSel = p.bm[bn]; renderFiles(); renderStatus(); }
+    return;
+  }
+  var es = list(p, p.cwd); if(!es.length) return;
   var i = 0; es.forEach(function(e,k){ if(e.name === p.sel[p.cwd]) i = k; });
   var ni = Math.max(0, Math.min(es.length-1, i+d)); if(ni === i) return;
   p.sel[p.cwd] = es[ni].name; renderFiles(); renderStatus();
 }
 function jump(end){
-  var p = proj(), es = list(p, p.cwd); if(!es.length) return;
+  var p = proj();
+  if(p.side === "bm"){ if(p.bm.length){ p.bmSel = p.bm[end ? p.bm.length-1 : 0]; renderFiles(); renderStatus(); } return; }
+  var es = list(p, p.cwd); if(!es.length) return;
   p.sel[p.cwd] = es[end ? es.length-1 : 0].name; renderFiles(); renderStatus();
 }
 function right(){
@@ -643,7 +705,7 @@ function right(){
 }
 function left(){
   var p = proj();
-  if(!p.cwd) return;
+  if(p.side === "bm" || !p.cwd) return;
   var parent = dirOf(p.cwd); p.sel[parent] = base(p.cwd); p.cwd = parent;
   renderFiles(); renderStatus();
 }
@@ -656,7 +718,7 @@ function goTo(p, path){
   if(!p.files[path]) return;
   var parts = path.split("/"), d = "";
   for(var i=0;i<parts.length-1;i++){ p.sel[d] = parts[i]; d = d ? d+"/"+parts[i] : parts[i]; }
-  p.sel[d] = parts[parts.length-1]; p.cwd = d; p.view = "files";
+  p.sel[d] = parts[parts.length-1]; p.cwd = d; p.view = "files"; p.side = "files";
   setPane("list"); render();
 }
 function gmove(p, d){
@@ -706,7 +768,7 @@ $("files").addEventListener("pointerdown",function(e){
   if(e.target.closest(".pv, .gright")) setPane("preview");
   else if(e.target.closest(".col")) setPane("list");
 });
-$("files").addEventListener("mousedown",function(e){ if(e.target.closest(".row, .gr")) e.preventDefault(); });
+$("files").addEventListener("mousedown",function(e){ if(e.target.closest(".row, .gr, .brow, .side")) e.preventDefault(); });
 $("files").addEventListener("click",function(e){
   var p = proj();
   if(p.view === "diff"){
@@ -723,6 +785,9 @@ $("files").addEventListener("click",function(e){
     f.content = L.join("\n");
     renderTabs(); renderFiles(); renderStatus(); return;
   }
+  var sd = e.target.closest("[data-side]"); if(sd){ setSide(sd.dataset.side); return; }
+  var bt = e.target.closest("[data-bmt]"); if(bt){ toggleBm(bt.dataset.bmt); return; }
+  var bk = e.target.closest("[data-bm]"); if(bk){ p.bmSel = bk.dataset.bm; renderFiles(); renderStatus(); return; }
   var a = e.target.closest("[data-goto]"); if(a){ e.preventDefault(); goTo(p, a.dataset.goto); return; }
   var row = e.target.closest(".row"); if(!row) return;
   p.sel[p.cwd] = row.dataset.name;
