@@ -149,6 +149,17 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;paddin
 .vtab .x{padding:1px 5px;margin-right:4px;font-size:13px;line-height:1;border-radius:4px;opacity:0}
 .vtab:hover .x,.vtab.on .x{opacity:.7}
 .vtab .x:hover{background:var(--code)}.vtab.on .x:hover{background:var(--bg)}
+.vtab .x .dt{display:none;font-size:9px}
+.vtab.dirty .x{opacity:.8}.vtab.dirty .x .dt{display:inline}.vtab.dirty .x .xx{display:none}
+.vtab.dirty .x:hover .dt{display:none}.vtab.dirty .x:hover .xx{display:inline}
+.row .unsaved{font-size:8px;color:var(--ink);margin-left:6px;flex:none}
+.ask{position:fixed;inset:0;background:rgba(15,16,18,.35);display:grid;place-items:center;z-index:50}
+.ask > div{background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:18px 20px;min-width:300px;max-width:420px;box-shadow:0 8px 30px rgba(0,0,0,.18)}
+.ask p{margin:0 0 14px}
+.ask .btns{display:flex;gap:8px;justify-content:flex-end}
+.ask button{padding:4px 12px;border:1px solid var(--line);border-radius:6px}
+.ask button:hover,.ask button:focus-visible{background:var(--accent-soft)}
+.ask button.pri{background:var(--accent);color:var(--bg);border-color:var(--accent)}
 .vnew{display:grid;place-items:center;width:30px;flex:none;color:var(--mute)}
 .vnew:hover{color:var(--ink)}
 .vnew svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}
@@ -252,6 +263,7 @@ kbd{font:11px var(--mono);border:1px solid var(--line);border-radius:4px;padding
     <button class="ibtn" id="btnNew" aria-haspopup="menu" aria-label="プロジェクトを開く" title="プロジェクトを開く"><svg viewBox="0 0 16 16"><path d="M8 3v10M3 8h10"/></svg></button>
     <span class="tsep"></span>
     <button class="ibtn" id="btnMode"></button>
+    <button class="ibtn" id="btnSave"><svg viewBox="0 0 16 16"><path d="M2.5 2.5h9l2 2v9h-11z"/><path d="M5 2.5v3.5h5.5V2.5M4.5 13.5V9.5h7v4"/></svg></button>
     <button class="ibtn" id="btnRoot"><svg viewBox="0 0 16 16"><path d="M2.5 7.5L8 3l5.5 4.5M4 6.5V13h8V6.5"/></svg></button>
     <span class="tsep"></span>
     <button class="ibtn" id="btnLayout" aria-haspopup="menu" title="表示するパネル" aria-label="表示するパネル"><svg viewBox="0 0 16 16"><rect x="2" y="2.5" width="12" height="11" rx="1.5"/><path d="M2 6h12M6 6v7.5"/></svg></button>
@@ -408,13 +420,13 @@ function sampleCommits(src){
 /* ---------- home (WSL: /home/<user>) ----------
    プロジェクト = ホーム配下のフォルダ。ファイルの実体は HOME に1つだけ持ち、各プロジェクトはその一部を参照する。 */
 var HOME = {};
-function addHome(prefix, src){ Object.keys(src).forEach(function(k){ HOME[(prefix ? prefix+"/" : "")+k] = {content:src[k], base:src[k]}; }); }
+function addHome(prefix, src){ Object.keys(src).forEach(function(k){ HOME[(prefix ? prefix+"/" : "")+k] = {content:src[k], base:src[k], disk:src[k]}; }); }
 addHome("workspace/claude-gui", PROJECT_A);
 addHome("workspace/tech-blog", PROJECT_B);
 addHome("", {"notes.md":"# メモ\n\n- ホームのメモ。プロジェクトにしていないものを置く。"});
 /* sample: two uncommitted changes in claude-gui */
-(function(f){ f.base = f.content.replace("- [x] 差分を読み取り専用で見られる","- [ ] 差分を読み取り専用で見られる"); })(HOME["workspace/claude-gui/PLAN.md"]);
-(function(f){ f.base = f.content.split("\n").slice(0,-1).join("\n"); })(HOME["workspace/claude-gui/README.md"]);
+(function(f){ f.base = f.disk.replace("- [x] 差分を読み取り専用で見られる","- [ ] 差分を読み取り専用で見られる"); })(HOME["workspace/claude-gui/PLAN.md"]);
+(function(f){ f.base = f.disk.split("\n").slice(0,-1).join("\n"); })(HOME["workspace/claude-gui/README.md"]);
 function relOf(root){ return root === "~" ? "" : root.slice(2); }
 /* パスはすべてホームからの相対パス（"" = ~）。p.files は HOME そのもの。
    プロジェクトの場所（root）は、開いたときの位置と、差分・進捗・表示の基準に使う。一覧は root より上にも移動できる。 */
@@ -494,7 +506,8 @@ function current(p){
 }
 
 /* ---------- git (read only) ---------- */
-function isMod(f){ return f.base !== f.content; }
+function isMod(f){ return f.base !== f.disk; }          /* 未コミット: 保存済みの中身（disk）と最後のコミット（base）を比べる */
+function isDirty(f){ return !!f && f.content !== f.disk; }  /* 未保存: 編集中の中身（content）と保存済みの中身（disk）を比べる */
 function changedList(p){ return Object.keys(p.files).filter(function(k){ return inRoot(p, k) && isMod(p.files[k]); }).sort(); }
 function lines(t){ return (t === null || t === "") ? [] : t.split("\n"); }
 function diffOps(a, b){
@@ -668,8 +681,60 @@ var ICON = {
   view:'<svg viewBox="0 0 16 16"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></svg>',
   edit:'<svg viewBox="0 0 16 16"><path d="M10.5 2.5l3 3L6 13H3v-3z"/></svg>'
 };
+/* ---------- 保存: Ctrl+S かツールバーの保存ボタンで、アクティブなタブのファイルを保存する ---------- */
+var SAVEKEY = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘S" : "Ctrl+S";
+function saveTarget(){
+  if(!P.length) return null;
+  var p = proj(); if(p.view === "diff" || !p.vt.length) return null;
+  var e = current(p); if(!e || e.isDir) return null;
+  return isDirty(p.files[e.path]) ? e.path : null;
+}
+function save(){
+  var path = saveTarget(); if(!path) return;
+  var f = proj().files[path]; f.disk = f.content;
+  refreshDirty();
+}
+/* 編集中の textarea を作り直さずに、未保存の印・保存ボタン・Git のバッジだけを更新する */
+function refreshDirty(){
+  if(!P.length) return;
+  var p = proj();
+  document.querySelectorAll(".vtab").forEach(function(el, i){ el.classList.toggle("dirty", isDirty(p.files[p.vt[i]])); });
+  document.querySelectorAll(".row[data-name]").forEach(function(el){
+    if(el.closest(".pv")) return;    /* プレビューに出したフォルダの中身は対象外 */
+    var path = p.cwd ? p.cwd+"/"+el.dataset.name : el.dataset.name, d = isDirty(p.files[path]), m = el.querySelector(".unsaved");
+    if(d && !m){ m = document.createElement("span"); m.className = "unsaved"; m.title = "未保存"; m.textContent = "●"; el.querySelector(".name").after(m); }
+    if(!d && m) m.remove();
+  });
+  var n = changedList(p).length, bd = document.querySelector('.side [data-side="git"] .bdg');
+  if(bd) bd.textContent = n ? n : "";
+  syncSeg();
+}
+/* 保存 / 破棄 / キャンセル を選ばせる小さなダイアログ */
+function ask(msg, cb){
+  var prevFocus = document.activeElement, box = document.createElement("div");
+  box.className = "ask";
+  box.innerHTML = '<div role="dialog" aria-modal="true"><p>'+esc(msg)+'</p><div class="btns">' +
+    '<button data-a="cancel">キャンセル</button><button data-a="discard">破棄</button><button data-a="save" class="pri">保存</button></div></div>';
+  document.body.appendChild(box);
+  var done = function(a){ box.remove(); if(prevFocus && prevFocus.focus) prevFocus.focus(); cb(a); };
+  box.addEventListener("click", function(e){ var b = e.target.closest("[data-a]"); if(b) done(b.dataset.a); else if(e.target === box) done("cancel"); });
+  box.addEventListener("keydown", function(e){
+    e.stopPropagation();
+    if(e.key === "Escape"){ e.preventDefault(); done("cancel"); }
+    if(e.key === "ArrowLeft" || e.key === "ArrowRight"){
+      var bs = Array.prototype.slice.call(box.querySelectorAll("button")), i = bs.indexOf(document.activeElement);
+      e.preventDefault(); bs[(i + (e.key === "ArrowRight" ? 1 : bs.length-1)) % bs.length].focus();
+    }
+  });
+  box.querySelector(".pri").focus();
+}
+window.addEventListener("beforeunload", function(e){
+  if(Object.keys(HOME).some(function(k){ return isDirty(HOME[k]); })){ e.preventDefault(); e.returnValue = ""; }
+});
 function syncSeg(){
   var br = $("btnRoot");
+  var sv = $("btnSave"), sf = saveTarget(), sl = sf ? "保存（"+SAVEKEY+"）" : "保存（未保存の変更はありません）";
+  sv.disabled = !sf; sv.title = sl; sv.setAttribute("aria-label", sl);
   if(!P.length){ $("btnMode").innerHTML = ICON.view; $("btnMode").disabled = true; br.disabled = true; br.title = "プロジェクトのフォルダへ戻る"; return; }
   var p = proj(), bm = $("btnMode");
   var atRoot = p.view === "files" && p.side === "files" && p.cwd === relOf(p.root), rl = "プロジェクトのフォルダへ戻る（"+p.root+"）";
@@ -732,9 +797,9 @@ function sideHtml(p){
 function vtHtml(p){
   return '<div class="vtabs" role="tablist" aria-label="開いているファイル">' + p.vt.map(function(path, i){
     var on = i === p.vi, f = p.files[path], isDir = !f;
-    return '<div class="vtab'+(on ? " on" : "")+'" role="tab" aria-selected="'+on+'"><button data-vt="'+i+'" title="'+esc(disp(p, path))+(isDir ? "/" : "")+'" tabindex="-1">' +
+    return '<div class="vtab'+(on ? " on" : "")+(isDirty(f) ? " dirty" : "")+'" role="tab" aria-selected="'+on+'"><button data-vt="'+i+'" title="'+esc(disp(p, path))+(isDir ? "/" : "")+'" tabindex="-1">' +
       '<span class="b">'+(isDir ? "▸" : ext(path))+'</span><span class="nm">'+esc(base(path))+(isDir ? "/" : "")+'</span></button>' +
-      '<button class="x" data-vtx="'+i+'" tabindex="-1" aria-label="'+esc(base(path))+'のタブを閉じる">×</button></div>';
+      '<button class="x" data-vtx="'+i+'" tabindex="-1" aria-label="'+esc(base(path))+'のタブを閉じる"><span class="dt" title="未保存">●</span><span class="xx">×</span></button></div>';
   }).join("") + '</div><button class="vnew" data-vtnew title="タブを追加" aria-label="タブを追加" tabindex="-1"><svg viewBox="0 0 16 16"><path d="M8 4v8M4 8h8"/></svg></button>';
 }
 function reveal(p, path){
@@ -756,8 +821,17 @@ function newVt(){
 }
 /* タブが0のときに一覧で選び直したら、タブを1つ作ってそこに出す */
 function touch(p){ if(!p.vt.length){ p.vt = [""]; p.vi = 0; } }
-function closeVt(i){
-  var p = proj();
+function closeVt(i, force){
+  var p = proj(), path = p.vt[i], f = p.files[path];
+  var other = p.vt.some(function(x, j){ return j !== i && x === path; });   /* 同じファイルを別のタブでも開いていれば、編集はそちらに残る */
+  if(!force && isDirty(f) && !other){
+    ask(base(path)+" の変更は保存されていません。", function(a){
+      if(a === "cancel") return;
+      if(a === "save") f.disk = f.content; else f.content = f.disk;
+      closeVt(p.vt.indexOf(path) === i ? i : p.vt.indexOf(path), true);
+    });
+    return;
+  }
   p.vt.splice(i,1);
   if(!p.vt.length){ p.vi = 0; }
   else if(i < p.vi) p.vi--;
@@ -868,7 +942,7 @@ function rowsHtml(p, entries, selName, marks){
     if(marks && p.renaming === e.path)
       return '<div class="row renaming sel'+(e.isDir ? " dir" : "")+'"><span class="b">'+(e.isDir ? "▸" : ext(e.name))+'</span><input class="rn" id="rnInput" value="'+esc(e.name)+'" spellcheck="false" aria-label="新しい名前"></div>';
     return '<button class="row'+(e.isDir?" dir":"")+(e.name===selName?" sel":"")+'" data-name="'+esc(e.name)+'" tabindex="-1">' +
-      '<span class="b">'+(e.isDir ? "▸" : ext(e.name))+'</span><span class="name">'+esc(e.name)+(e.isDir?"/":"")+'</span>'+
+      '<span class="b">'+(e.isDir ? "▸" : ext(e.name))+'</span><span class="name">'+esc(e.name)+(e.isDir?"/":"")+'</span>'+(!e.isDir && isDirty(p.files[e.path]) ? '<span class="unsaved" title="未保存">●</span>' : "")+
       (marks ? moreBtn(e.path) : "")+'</button>';
   }).join("");
 }
@@ -881,7 +955,7 @@ function previewInto(body, p, e){
   if((p.mode[e.path]||"view") === "edit"){
     body.innerHTML = '<textarea class="editor" id="editor" spellcheck="false" aria-label="'+esc(base(e.path))+'を編集"></textarea>';
     var ta = $("editor"); ta.value = f.content;
-    ta.addEventListener("input",function(){ f.content = ta.value; renderTabs(); renderStatus(); });
+    ta.addEventListener("input",function(){ f.content = ta.value; refreshDirty(); });
     ta.focus(); setPane("preview");
     return;
   }
@@ -950,7 +1024,7 @@ function diffPaneHtml(p){
   if(p.gfocus === "changes"){
     var path = gcur(p, "changes");
     if(!path) return '<div class="empty">変更されたファイルはありません</div>';
-    return '<div class="diff">'+fileDiffHtml(disp(p, path), p.files[path].base, p.files[path].content)+'</div>';
+    return '<div class="diff">'+fileDiffHtml(disp(p, path), p.files[path].base, p.files[path].disk)+'</div>';
   }
   var c = gcur(p, "commits");
   if(!c) return '<div class="empty">コミットがありません</div>';
@@ -961,7 +1035,7 @@ function renderDiff(p){
   var box = $("files"), l = changedList(p);
   gcur(p, "changes"); gcur(p, "commits");
   var cr = l.map(function(k,i){
-    var f = p.files[k], st = diffStat(diffOps(f.base, f.content)), kind = f.base === null ? "A" : "M";
+    var f = p.files[k], st = diffStat(diffOps(f.base, f.disk)), kind = f.base === null ? "A" : "M";
     return '<div class="gr'+(i === p.gi.changes ? " sel" : "")+'" data-gi="changes:'+i+'"><span class="st '+kind+'">'+kind+'</span><span class="tx">'+esc(disp(p, k))+'</span>' +
       '<span class="cnt"><span class="a">+'+st.a+'</span><span class="d">−'+st.d+'</span></span></div>';
   }).join("");
@@ -975,6 +1049,8 @@ function renderDiff(p){
 }
 function hintText(p){
   if(p.view === "diff") return '<kbd>↑↓</kbd> 選択 <kbd>←→</kbd> パネル <kbd>d u</kbd> スクロール <kbd>v</kbd> ファイル';
+  var e = p.vt.length ? current(p) : null;
+  if(e && !e.isDir && p.mode[e.path] === "edit") return '<kbd>'+SAVEKEY+'</kbd> 保存 <kbd>Esc</kbd> 閲覧に戻る';
   return '<kbd>↑↓</kbd> 移動 <kbd>←→</kbd> 階層 <kbd>e</kbd> 編集 <kbd>d u</kbd> スクロール <kbd>v</kbd> 差分';
 }
 function renderStatus(){
@@ -1063,6 +1139,7 @@ $("btnPtabNew").addEventListener("click",newProject);
 $("btnPtabNew").addEventListener("mousedown",function(e){ e.preventDefault(); });
 $("btnNew").addEventListener("click",function(){ var was = menuFor && menuFor.kind === "proj"; closeMenu(); if(!was) openProjMenu($("btnNew")); });
 $("btnMode").addEventListener("click",edit);
+$("btnSave").addEventListener("click",save);
 $("btnRoot").addEventListener("click",toRoot);
 /* ---------- panel visibility ---------- */
 var PANEL = {ptabs:"プロジェクトのタブ", list:"ファイル一覧", vtabs:"プレビューのタブ", status:"フッター"}, hidden = {};
@@ -1112,7 +1189,7 @@ function togglePanel(k){
 }
 $("btnLayout").addEventListener("click",function(){ var was = menuFor && menuFor.kind === "layout"; closeMenu(); if(!was) openLayoutMenu($("btnLayout")); });
 applyPanels();
-["btnNew","btnMode","btnRoot","btnLayout"].forEach(function(id){ $(id).addEventListener("mousedown",function(e){ e.preventDefault(); }); });
+["btnNew","btnMode","btnSave","btnRoot","btnLayout"].forEach(function(id){ $(id).addEventListener("mousedown",function(e){ e.preventDefault(); }); });
 $("files").addEventListener("pointerdown",function(e){
   if(e.target.closest(".pv, .gright")) setPane("preview");
   else if(e.target.closest(".col")) setPane("list");
@@ -1133,7 +1210,9 @@ $("files").addEventListener("click",function(e){
   if(cb){
     var en2 = current(p), f = p.files[en2.path], L = f.content.split("\n"), i = +cb.dataset.line;
     L[i] = /\[x\]/i.test(L[i]) ? L[i].replace(/\[x\]/i,"[ ]") : L[i].replace("[ ]","[x]");
+    var clean = !isDirty(f);
     f.content = L.join("\n");
+    if(clean) f.disk = f.content;     /* 未保存の編集がなければ、チェックはそのまま保存する */
     renderTabs(); renderFiles(); renderStatus(); return;
   }
   var vx = e.target.closest("[data-vtx]"); if(vx){ closeVt(+vx.dataset.vtx); return; }
@@ -1221,6 +1300,7 @@ document.addEventListener("keydown",function(e){
     if(e.key === "Tab") return;
     e.preventDefault(); return;
   }
+  if((e.ctrlKey || e.metaKey) && !e.altKey && e.code === "KeyS"){ e.preventDefault(); save(); return; }   /* 入力中も受ける */
   if(e.altKey && !e.ctrlKey && !e.metaKey){
     if(e.code === "KeyT"){ e.preventDefault(); newProject(); return; }
     if(e.code === "KeyW"){ e.preventDefault(); closeProject(cur); return; }
