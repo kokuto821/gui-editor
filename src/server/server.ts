@@ -9,6 +9,8 @@ import sirv from "sirv";
 import { WebSocket, WebSocketServer } from "ws";
 import type { Response, ServerEvent } from "../shared/protocol.js";
 import { FsError, Files } from "./fs.js";
+import * as git from "./git.js";
+import { loadSettings, saveSettings, sanitize } from "./settings.js";
 import { Watchers } from "./watch.js";
 
 export interface RunningServer {
@@ -47,7 +49,10 @@ export async function startServer(opts: { port: number; onStop?: () => void }): 
     const data = JSON.stringify(ev);
     for (const c of clients) if (c.readyState === WebSocket.OPEN) c.send(data);
   };
-  const watchers = new Watchers((root, paths) => broadcast({ event: "fs.changed", root, paths }));
+  const watchers = new Watchers(
+    (root, paths) => broadcast({ event: "fs.changed", root, paths }),
+    (root) => broadcast({ event: "git.changed", root }),
+  );
 
   async function addProject(p: unknown): Promise<string> {
     if (typeof p !== "string" || !path.isAbsolute(p)) throw new FsError("bad_request", "絶対パスで指定してください");
@@ -58,11 +63,28 @@ export async function startServer(opts: { port: number; onStop?: () => void }): 
     if (!roots.has(real)) {
       roots.add(real);
       projects.push(real);
-      await watchers.add(real).catch(() => {}); // 監視できなくても表示は続ける
+      // ホームそのものは監視しない（巨大で、監視の上限を使い切るため）。そのときは、画面を開き直すか戻ったときに読み直す
+      if (real !== home) await watchers.add(real).catch(() => {}); // 監視できなくても表示は続ける
     }
     broadcast({ event: "project.open", path: real });
     return real;
   }
+
+  async function closeProject(p: unknown): Promise<void> {
+    if (typeof p !== "string") return;
+    const i = projects.indexOf(p);
+    if (i < 0) return;
+    projects.splice(i, 1);
+    roots.delete(p);
+    await watchers.remove(p);
+  }
+
+  /** git の呼び出しは、開いているプロジェクトのフォルダだけに許す。 */
+  const gitRoot = async (r: unknown): Promise<string> => {
+    const real = await files.resolve(r);
+    if (!roots.has(real)) throw new FsError("forbidden", "開いているプロジェクトではありません");
+    return real;
+  };
 
   const webDir = fileURLToPath(new URL("./web/", import.meta.url));
   const serveStatic = sirv(webDir, { etag: true, dev: false });
@@ -153,6 +175,43 @@ export async function startServer(opts: { port: number; onStop?: () => void }): 
             break;
           case "fs.read":
             result = await files.read(params.path);
+            break;
+          case "fs.write":
+            result = await files.write(params.path, params.text, params.baseMtime);
+            break;
+          case "fs.rename":
+            result = await files.rename(params.path, params.name);
+            break;
+          case "fs.delete":
+            await files.delete(params.path);
+            result = {};
+            break;
+          case "project.open":
+            result = { path: await addProject(params.path) };
+            break;
+          case "project.close":
+            await closeProject(params.path);
+            result = {};
+            break;
+          case "git.status":
+            result = await git.status(await gitRoot(params.root));
+            break;
+          case "git.log":
+            result = { commits: await git.log(await gitRoot(params.root)) };
+            break;
+          case "git.diff": {
+            const root = await gitRoot(params.root);
+            const file = typeof params.path === "string" ? params.path : undefined;
+            const hash = typeof params.hash === "string" ? params.hash : undefined;
+            result = await git.diff(root, file, hash);
+            break;
+          }
+          case "settings.get":
+            result = loadSettings();
+            break;
+          case "settings.set":
+            saveSettings(sanitize(params.settings));
+            result = {};
             break;
           default:
             return reply({ id, error: { code: "unknown_method", message: "未対応の操作です" } });

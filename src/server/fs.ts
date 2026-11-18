@@ -16,7 +16,7 @@ const MAX_TEXT_BYTES = 2 * 1024 * 1024;
 
 export class FsError extends Error {
   constructor(
-    public code: "forbidden" | "not_found" | "not_dir" | "not_file" | "bad_request",
+    public code: "forbidden" | "not_found" | "not_dir" | "not_file" | "bad_request" | "conflict" | "exists",
     message: string,
   ) {
     super(message);
@@ -110,6 +110,42 @@ export class Files {
     const buf = await fs.readFile(real);
     if (!looksLikeText(buf.subarray(0, SNIFF_BYTES))) return { kind: "unsupported", reason: "binary", size: st.size };
     return { kind: "text", text: buf.toString("utf8"), size: st.size, mtime: st.mtimeMs };
+  }
+
+  /** テキストファイルを書き換える。baseMtime が今と違えば、外で変わったとして断る（上書きしない）。 */
+  async write(p: unknown, text: unknown, baseMtime: unknown): Promise<{ mtime: number }> {
+    if (typeof text !== "string") throw new FsError("bad_request", "本文が正しくありません");
+    const real = await this.resolve(p);
+    const st = await fs.stat(real);
+    if (!st.isFile()) throw new FsError("not_file", "ファイルではありません");
+    if (typeof baseMtime === "number" && Math.abs(st.mtimeMs - baseMtime) > 1)
+      throw new FsError("conflict", "ファイルが外で書き換えられています");
+    await fs.writeFile(real, text, "utf8");
+    return { mtime: (await fs.stat(real)).mtimeMs };
+  }
+
+  /** 同じフォルダの中で、名前を変える。 */
+  async rename(p: unknown, name: unknown): Promise<{ path: string }> {
+    if (typeof name !== "string" || !name || name === "." || name === ".." || /[/\\\0]/.test(name))
+      throw new FsError("bad_request", "名前が正しくありません");
+    const real = await this.resolve(p);
+    if (real === this.home) throw new FsError("forbidden", "名前を変えられません");
+    const target = path.join(path.dirname(real), name);
+    if (target === real) return { path: real };
+    const exists = await fs.lstat(target).then(() => true, () => false);
+    if (exists) throw new FsError("exists", "同じ名前のものがあります");
+    await fs.rename(real, target);
+    return { path: target };
+  }
+
+  /** ファイルやフォルダ（中身ごと）を削除する。ホームとルートは消さない。 */
+  async delete(p: unknown): Promise<void> {
+    if (typeof p !== "string" || !path.isAbsolute(p)) throw new FsError("bad_request", "絶対パスで指定してください");
+    // リンクそのものを消せるように、末尾は realpath しない（親の実体で場所を確かめる）
+    const parent = await this.resolve(path.dirname(path.normalize(p)));
+    const target = path.join(parent, path.basename(p));
+    if (target === this.home || target === path.parse(target).root) throw new FsError("forbidden", "削除できません");
+    await fs.rm(target, { recursive: true });
   }
 
   /** 画像として配ってよいファイルか確かめ、実体のパスと型を返す。 */
