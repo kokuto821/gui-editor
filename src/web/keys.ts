@@ -1,4 +1,4 @@
-import { currentOf, useApp } from "./stores/app";
+import { currentOf, shownOf, useApp } from "./stores/app";
 import { useDocs } from "./stores/docs";
 import { useGit } from "./stores/git";
 import { useUi } from "./stores/ui";
@@ -45,7 +45,7 @@ export function installKeys(): void {
       if (e.key === "Escape" && (e.target as HTMLElement).closest(".cm-editor")) {
         e.preventDefault();
         const p = s.projects[s.active];
-        const c = currentOf(p, s.entries);
+        const c = shownOf(p, s.entries);
         if (c) s.setMode(c.path, "view"); // 編集をやめて、一覧に戻る
         (document.activeElement as HTMLElement | null)?.blur();
       }
@@ -89,7 +89,8 @@ export function installKeys(): void {
       case "Enter": case "e": {
         const c = currentOf(p, s.entries);
         if (e.key === "Enter" && c?.isDir) return (e.preventDefault(), void s.enter());
-        if (c && !c.isDir && useDocs.getState().docs[c.path]) (e.preventDefault(), s.toggleMode());
+        const f = shownOf(p, s.entries);
+        if (f && useDocs.getState().docs[f.path]) (e.preventDefault(), s.toggleMode());
         return;
       }
       case "v": return void s.toggleView();

@@ -108,6 +108,7 @@ export function FileList() {
   const p = useProject();
   const selName = p?.sel[p.cwd];
   const listRef = useRef<HTMLDivElement>(null);
+  const enteredAt = useRef(0);
 
   useEffect(() => {
     listRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
@@ -135,8 +136,13 @@ export function FileList() {
               type="button"
               tabIndex={-1}
               className="flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-0.5 text-left"
-              onClick={() => void select(e.name)}
-              onDoubleClick={() => (e.kind === "dir" ? void enter() : void openInNewTab(full))}
+              onClick={() => {
+                if (Date.now() - enteredAt.current < 500) return; // フォルダに入った直後の2回目のクリックは、移動先の行に効かせない
+                if (e.kind !== "dir") return void select(e.name);
+                enteredAt.current = Date.now();
+                void select(e.name).then(enter); // フォルダは開かず、その中へ移動するだけ
+              }}
+              onDoubleClick={() => e.kind !== "dir" && Date.now() - enteredAt.current >= 500 && void openInNewTab(full)}
             >
               <span className="w-9 flex-none font-mono text-[9px] text-mute uppercase">{badge(e)}</span>
               <span className={clsx("truncate", e.kind === "binary" && "text-mute")}>

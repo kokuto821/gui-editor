@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { useRef } from "react";
-import { currentOf, useApp, useProject } from "../stores/app";
+import { shownOf, useApp, useProject } from "../stores/app";
 import { isDirty, useDocs } from "../stores/docs";
 import { useUi } from "../stores/ui";
 import { IconEye, IconHome, IconLayout, IconPencil, IconPlus, IconSave } from "./Icons";
@@ -44,7 +44,7 @@ export function Toolbar() {
   const plusRef = useRef<HTMLButtonElement>(null);
   const layRef = useRef<HTMLButtonElement>(null);
 
-  const c = currentOf(p, entries);
+  const c = shownOf(p, entries);
   const doc = c && p?.view === "files" && p.tabs.length ? docs[c.path] : undefined;
   const editing = !!(c && p?.mode[c.path] === "edit");
   const atRoot = !!p && p.view === "files" && p.side === "files" && p.cwd === p.root;

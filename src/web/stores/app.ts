@@ -116,6 +116,14 @@ export function currentOf(p: Project | undefined, entries: Entry[]): Current | n
   return e ? { path: joinPath(p.cwd, e.name), name: e.name, isDir: e.kind === "dir" } : null;
 }
 
+/** プレビューに出しているファイル。フォルダは開かないので、フォルダを選んでいるときはアクティブなタブのファイル。 */
+export function shownOf(p: Project | undefined, entries: Entry[]): Current | null {
+  const c = currentOf(p, entries);
+  if (!p || (c && !c.isDir)) return c;
+  const path = p.tabs[p.tabIndex];
+  return path ? { path, name: baseOf(path), isDir: false } : null;
+}
+
 /** 状態の中の、パスを持つ項目を、名前変更・削除（to が null）に合わせて直す。 */
 function remap(p: Project, from: string, to: string | null): Project | null {
   const fix = (k: string): string | null => (k === from ? to : isInside(from, k) ? (to === null ? null : to + k.slice(from.length)) : k);
@@ -160,6 +168,7 @@ export const useApp = create<State>()((set, get) => {
   };
   const withSel = (p: Project, dir: string, name: string): Project => ({ ...p, sel: { ...p.sel, [dir]: name } });
   const cur = () => currentOf(project(), get().entries);
+  const shown = () => shownOf(project(), get().entries);
   const canVisit = (p: Project, dir: string) => isInside(get().home, dir) || isInside(p.root, dir);
   const settings = () => useSettings.getState();
 
@@ -168,7 +177,7 @@ export const useApp = create<State>()((set, get) => {
   function syncTab() {
     const p = project();
     const c = cur();
-    if (!p || !c || !p.tabs.length || p.tabs[p.tabIndex] === c.path) return;
+    if (!p || !c || c.isDir || !p.tabs.length || p.tabs[p.tabIndex] === c.path) return;
     lastReplaced = { index: p.tabIndex, prev: p.tabs[p.tabIndex] ?? "", path: c.path };
     patch((q) => ({ ...q, tabs: q.tabs.map((t, i) => (i === q.tabIndex ? c.path : t)) }));
   }
@@ -179,10 +188,10 @@ export const useApp = create<State>()((set, get) => {
   }
 
   async function loadCurrent() {
-    const c = cur();
+    const c = shown();
     const p = project();
     if (!c || !p || !p.tabs.length) return;
-    if (c.isDir || isImagePath(c.path)) return;
+    if (isImagePath(c.path)) return;
     await useDocs.getState().load(c.path);
   }
 
@@ -351,6 +360,8 @@ export const useApp = create<State>()((set, get) => {
       const p = project();
       // 同じものを選び直しても、タブが0件なら、タブを作って表示する
       if (!p || (p.sel[p.cwd] === name && p.tabs.length)) return;
+      // フォルダは開かない: 一覧で選ぶだけで、タブとプレビューはそのまま
+      if (get().entries.find((e) => e.name === name)?.kind === "dir") return patch((q) => withSel(q, q.cwd, name));
       touch();
       patch((q) => withSel(q, q.cwd, name));
       syncTab();
@@ -474,7 +485,7 @@ export const useApp = create<State>()((set, get) => {
 
     async dupTab() {
       const p = project();
-      const c = cur();
+      const c = shown();
       if (!p || !c) return;
       patch((q) => ({ ...q, tabs: [...q.tabs.slice(0, q.tabIndex + 1), c.path, ...q.tabs.slice(q.tabIndex + 1)], tabIndex: q.tabIndex + 1 }));
     },
@@ -521,7 +532,7 @@ export const useApp = create<State>()((set, get) => {
     },
 
     toggleMode() {
-      const c = cur();
+      const c = shown();
       const p = project();
       if (!c || !p || c.isDir || !p.tabs.length) return;
       const doc = useDocs.getState().docs[c.path];
@@ -530,7 +541,7 @@ export const useApp = create<State>()((set, get) => {
     },
 
     async saveCurrent() {
-      const c = cur();
+      const c = shown();
       if (!c) return;
       const doc = useDocs.getState().docs[c.path];
       if (!isDirty(doc)) return;

@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { backend } from "../backend";
 import { useCodeMirror } from "../hooks/useCodeMirror";
 import { renderMermaidIn } from "../lib/mermaid";
 import { renderMd } from "../md";
 import { baseOf, dirOf, extOf, fmtSize, resolvePath, tilde } from "../paths";
-import { currentOf, isImagePath, useApp, useProject } from "../stores/app";
+import { isImagePath, shownOf, useApp, useProject } from "../stores/app";
 import { type Doc, useDocs } from "../stores/docs";
 import "../md.css";
 
@@ -106,23 +106,6 @@ function CodeView({ doc, editable }: { doc: Doc; editable: boolean }) {
   return <div ref={ref} className="h-full" />;
 }
 
-function DirView({ path }: { path: string }) {
-  const rev = useApp((s) => s.rev);
-  const [names, setNames] = useState<string[] | null>(null);
-  useEffect(() => {
-    let dead = false;
-    void backend
-      .call("fs.list", { dir: path })
-      .then((r) => !dead && setNames(r.entries.map((e) => e.name + (e.kind === "dir" ? "/" : ""))))
-      .catch(() => !dead && setNames([]));
-    return () => {
-      dead = true;
-    };
-  }, [path, rev]);
-  if (!names) return null;
-  return <div className="p-4 text-mute">{names.length ? names.map((n) => <div key={n}>{n}</div>) : "空のフォルダです"}</div>;
-}
-
 export function Preview() {
   const p = useProject();
   const entries = useApp((s) => s.entries);
@@ -130,13 +113,12 @@ export function Preview() {
   const setPane = useApp((s) => s.setPane);
   const docs = useDocs((s) => s.docs);
   const others = useDocs((s) => s.others);
-  const c = currentOf(p, entries);
+  const c = shownOf(p, entries);
 
   let body: React.ReactNode;
   let scrolls = true; // CodeMirror は、自分でスクロールする
   let doc: Doc | undefined;
   if (!p || !c || !p.tabs.length) body = <Message title="ファイルがありません" />;
-  else if (c.isDir) body = <DirView path={c.path} />;
   else if (isImagePath(c.path))
     body = (
       <div className="grid h-full place-items-center overflow-auto p-5">
