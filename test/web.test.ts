@@ -24,19 +24,19 @@ describe("tilde", () => {
 describe("renderMd", () => {
   const url = (p: string) => `/file?path=${p}`;
   it("HTML は通さない", () => {
-    expect(renderMd("<script>alert(1)</script>", "/a/x.md", url)).not.toContain("<script>");
+    expect(renderMd("<script>alert(1)</script>", "/a/x.md", "/a", url)).not.toContain("<script>");
   });
   it("チェックボックスを出す", () => {
-    const html = renderMd("- [x] 済\n- [ ] 未", "/a/x.md", url);
+    const html = renderMd("- [x] 済\n- [ ] 未", "/a/x.md", "/a", url);
     expect(html.match(/<input type="checkbox"/g)).toHaveLength(2);
     expect(html.match(/checked/g)).toHaveLength(1);
   });
   it("画像は相対パスだけを、サーバー経由で出す", () => {
-    expect(renderMd("![a](p.png)", "/a/x.md", url)).toContain('src="/file?path=/a/p.png"');
-    expect(renderMd("![a](https://e.com/p.png)", "/a/x.md", url)).not.toContain("<img");
-    expect(renderMd("![a](/etc/p.png)", "/a/x.md", url)).not.toContain("<img");
+    expect(renderMd("![a](p.png)", "/a/x.md", "/a", url)).toContain('src="/file?path=/a/p.png"');
+    expect(renderMd("![a](https://e.com/p.png)", "/a/x.md", "/a", url)).not.toContain("<img");
+    expect(renderMd("![a](/etc/p.png)", "/a/x.md", "/a", url)).not.toContain("<img");
   });
   it("javascript: のリンクは出さない", () => {
-    expect(renderMd("[x](javascript:alert(1))", "/a/x.md", url)).not.toContain("href");
+    expect(renderMd("[x](javascript:alert(1))", "/a/x.md", "/a", url)).not.toContain("href");
   });
 });

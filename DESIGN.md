@@ -172,27 +172,27 @@ src/
   shared/
     protocol.ts        # 要求・応答・通知の型（画面とサーバーで共通）
   server/
-    cli.ts             # 引数の解釈、動いているサーバーへの接続、ブラウザの起動
-    lock.ts            # ~/.cache/cgui/lock（pid, port, token）
+    cli.ts             # 引数の解釈、背景のサーバーの起動、動いているサーバーへの接続
+    lock.ts            # ~/.cache/cgui/lock.json（pid, port, token）
     open-browser.ts    # `--open` のとき、WSL の判定 → chrome.exe --app / cmd.exe start
-    http.ts            # 画面の配信と WebSocket の受付（token・Host・Origin の確認）
-    rpc.ts             # 要求を下のモジュールへ振り分ける
-    fs.ts              # 読む・書く・一覧・名前変更・削除。パスは $HOME の下に限る（realpath で確かめる）
-    watch.ts           # プロジェクトごとの監視、間引き、自分の書き込みの除外
-    git.ts             # status / log / diff の実行と出力の解析
-    settings.ts        # 設定ファイルの読み書き
-    preview.ts         # 図解用の別ポートのサーバー
+    server.ts          # 画面の配信、WebSocket の受付（token・Host・Origin の確認）、要求の振り分け、
+                       # 図解（HTML）用の別ポートのサーバー（/p/<token>/<絶対パス>）
+    paths.ts           # isInside（許す場所の内か）
+    fs.ts              # 一覧・読む・書く（baseMtime の衝突）・名前変更・削除。ホームとプロジェクトの下に限る（realpath で確かめる）
+    watch.ts           # プロジェクトごとの監視と間引き。.git の中（refs と index）も見て git.changed を出す
+    git.ts             # status / log / diff の実行と出力の解析（読み取りだけ）
+    settings.ts        # 設定ファイルの読み書きと、形の整え（sanitize）
   web/
-    main.tsx
-    app.css            # Tailwind の読み込みと @theme（配色）
-    md.css diff.css    # Tailwind で書きにくい部分
+    main.tsx App.tsx keys.ts   # 入口、全体のレイアウト、キー操作
+    app.css md.css             # Tailwind の読み込みと @theme（配色）、MD の整形表示
     backend/           # Backend の型と WsBackend（将来 TauriBackend を足す）
-    stores/            # Zustand のストア（状態・操作・読み方のフック）
-    hooks/             # DOM と外部ライブラリ用のフック
-    components/        # Toolbar, ProjectTabs, FileList, Bookmarks,
-                       # Preview/{Md,Html,Code,Folder}, DiffView, StatusBar, Menu
-    md/                # markdown-it のプラグイン（チェックボックス、[[リンク]]）
-    keys.ts            # キー操作（キー操作を受けるペインの切替を含む）
+    stores/            # app（プロジェクト・タブ・選択・ファイル操作）、docs（開いたファイルと編集中の内容）、
+                       # git、settings（設定の保存）、ui（メニュー・確認・知らせ）
+    lib/               # diff（unified diff の解析）、mermaid、settings-ops、time
+    hooks/             # useCodeMirror、useSplitDrag
+    components/        # Toolbar, ProjectTabs, PreviewTabs, FileList（+ SideSwitch, BookmarkList）,
+                       # Preview, GitPanes, DiffPane, StatusBar, Menu, Dialog, EmptyState
+    md.ts              # markdown-it の拡張（チェックボックス、[[リンク]]、画像、Mermaid）
 dist/                  # 生成物（prepare で作る。コミットしない）
 ```
 
@@ -210,13 +210,15 @@ Zustand のストアを用途ごとに分ける。`create()` が返すフック�
 
 | ストア | 中身 |
 | --- | --- |
-| `stores/app.ts` | プロジェクト、プレビューのタブ、表示（ファイル / ブックマーク / 差分）、カーソル、キー操作を受けるペイン、パネルの表示と操作 |
-| `stores/files.ts` | パス → `{ text, mtime, dirty }` のキャッシュ。`fs.changed` で更新する |
-| `stores/git.ts` | プロジェクトのフォルダ → `{ status, log }`。`git.changed` で取り直す |
+| `stores/app.ts` | プロジェクト、プレビューのタブ、表示（ファイル / ブックマーク / 差分）、カーソル、キー操作を受けるペイン、ファイル操作（名前変更・削除・ブックマーク） |
+| `stores/docs.ts` | 開いたテキストファイル → `{ saved, text, mtime, conflict }`。編集中の内容を持ち、`fs.changed` で読み直す。外で変わったときの衝突もここで扱う |
+| `stores/git.ts` | プロジェクトのフォルダ → `{ status, log }` と、選んだ差分。`git.changed` と `fs.changed` で取り直す |
+| `stores/settings.ts` | 設定ファイルの内容（ブックマーク、パネル、幅）。画面にはすぐ反映し、保存は少しまとめてから行う |
+| `stores/ui.ts` | 開いているメニュー、名前を変えている行、確認のダイアログ、短い知らせ |
 
 - キー操作（`keys.ts`）と WebSocket の受信は React の外に置き、`useApp.getState()` の操作を呼ぶ。起動時に1回だけ登録する。
 - 部品では `useApp(s => ...)` で必要な値だけを読む。配列やオブジェクトは `useShallow` で包む。よく使う読み方は、ストアのファイルにセレクタとフック（`useProject` など）として並べる。
-- `hooks/` には、状態と関係ないものだけを置く: `useCodeMirror`（`EditorView` の作成・外部の変更の反映・破棄）、`useSplitDrag`（幅の調節）、`useMenuPosition`（「…」メニューの位置）。
+- `hooks/` には、状態と関係ないものだけを置く: `useCodeMirror`（`EditorView` の作成・外部の変更の反映・言語の遅延読み込み・破棄）、`useSplitDrag`（幅の調節）。メニューの位置合わせは `Menu` の中で行う。
 - CodeMirror はラッパーのライブラリを使わず、`useCodeMirror` で直接扱う（閲覧と編集の切替や、外部の変更を差し込むため）。
 - 入れ子の更新がつらくなったら `immer` ミドルウェアを足す。最初は入れない。
 
@@ -274,9 +276,20 @@ Zustand のストアを用途ごとに分ける。`create()` が返すフック�
 
 ### 実装の状況
 
-最小構成まで実装済み（`README.md` を参照）。入っているのは、`cgui` の起動（背景のサーバー、2回目はタブの追加）、ファイル一覧、プレビュー（MD、コード、画像、非対応の知らせ）、ファイル監視による反映、トークンと `Host` / `Origin` の確認。
+2章〜5章の機能は、一通り実装済み（使い方は `README.md`）。
 
-未実装: 編集と保存、ブックマーク、プレビューのタブ、Git の差分、Mermaid、設定ファイル、幅の調節とパネルの表示切替、CodeMirror（コードの色付け）、`valibot` による要求の確認（今は手書きの確認）。
+- ツールバー（プロジェクトのメニュー、閲覧 / 編集、保存、プロジェクトのフォルダへ戻る、表示するパネル）、プロジェクトのタブ、プレビューのタブ
+- ファイル一覧、ブックマーク、行の「…」メニュー（名前変更・パスのコピー・削除・プロジェクトとしてブックマーク）、Git の差分（Changes / Commits）
+- プレビュー: MD（チェックボックス、`[[リンク]]`、画像、Mermaid）、`.mmd`、HTML（サンドボックス）、コード（CodeMirror で色付け）、画像、非対応の知らせ
+- 編集と保存（`Ctrl+S`）、未保存の「●」、閉じるときの確認、外で変わったときの衝突の選択
+- 設定ファイル（ブックマーク、プロジェクトのブックマーク、パネル、幅）、幅の調節、パネルの表示切替
+
+未実装・簡略化している点:
+
+- 要求の確認は、`valibot` ではなく手書き（`settings.set` だけは `sanitize` で形を整える）。
+- ホームそのもの（`~`）を開いたプロジェクトは、ファイル監視をしない（巨大で、監視の上限を使い切るため）。画面に戻ったときと、操作のたびに読み直す。
+- Changes の一覧には、ファイルごとの追加・削除の行数を出さない（差分を開いたときに、ヘッダーで見える）。
+- Mermaid と CodeMirror の言語は、必要になったときに読み込む（`dist/web` にチャンクが多く並ぶ）。
 
 ### 起動
 

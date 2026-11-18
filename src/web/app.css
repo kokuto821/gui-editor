@@ -9,6 +9,9 @@
   --color-ink: #0f1012;
   --color-code: #eaeae9;
   --color-del-ink: #c23b3b;
+  --color-add-ink: #1f8f5f;
+  --color-add-bg: #e7f6ed;
+  --color-del-bg: #fdecec;
   --font-sans: "IBM Plex Sans JP", "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
 }
@@ -22,6 +25,9 @@
     --color-ink: #fafaf8;
     --color-code: #292b2f;
     --color-del-ink: #ff8a8a;
+    --color-add-ink: #4cc38a;
+    --color-add-bg: #16301f;
+    --color-del-bg: #3a1d21;
     color-scheme: dark;
   }
 }
@@ -46,4 +52,12 @@ button {
 :focus-visible {
   outline: 2px solid var(--color-ink);
   outline-offset: 1px;
+}
+
+/* 一覧の行の「…」: 幅が狭いときは出さない（一覧の幅で決めるので、コンテナクエリ） */
+.list-col { container-type: inline-size; container-name: list; }
+.row-more { display: none; }
+@container list (min-width: 200px) {
+  .row:hover .row-more,
+  .row[aria-selected="true"] .row-more { display: grid; }
 }

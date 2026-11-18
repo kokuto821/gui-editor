@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 import sirv from "sirv";
 import { WebSocket, WebSocketServer } from "ws";
 import type { Response, ServerEvent } from "../shared/protocol.js";
-import { FsError, Files } from "./fs.js";
+import { ASSET_TYPES, FsError, Files } from "./fs.js";
 import * as git from "./git.js";
 import { loadSettings, saveSettings, sanitize } from "./settings.js";
 import { Watchers } from "./watch.js";
@@ -138,6 +138,36 @@ export async function startServer(opts: { port: number; onStop?: () => void }): 
     }
   });
 
+  // 図解（HTML）用の別のサーバー。別のポート = 別のオリジンなので、図解から本体の API には届かない。
+  // URL は /p/<トークン>/<絶対パス>。相対パスの CSS や画像が、そのまま解決できる。
+  let previewPort = 0;
+  const previewHostOk = (host: string | undefined) => host === `127.0.0.1:${previewPort}` || host === `localhost:${previewPort}`;
+  const previewServer = http.createServer(async (req, res) => {
+    const fail = (status: number) => {
+      res.writeHead(status, { "content-type": "text/plain; charset=utf-8", "cache-control": "no-store" });
+      res.end("forbidden");
+    };
+    if (!previewHostOk(req.headers.host)) return fail(403);
+    try {
+      const m = /^\/p\/([0-9a-f]+)(\/.*)$/.exec(new URL(req.url ?? "/", "http://x").pathname);
+      if (!m || !safeEqual(m[1]!, token)) return fail(403);
+      const f = await files.staticFile(decodeURIComponent(m[2]!), ASSET_TYPES);
+      res.writeHead(200, {
+        "content-type": f.type,
+        "content-length": f.size,
+        "cache-control": "no-cache",
+        "x-content-type-options": "nosniff",
+        "access-control-allow-origin": "*", // 図解は opaque なオリジン。フォントを読めるように
+        // 図解の中のリンクで直接開かれても、スクリプトは動かさない
+        "content-security-policy": "sandbox",
+      });
+      fs.createReadStream(f.real).pipe(res);
+    } catch (e) {
+      if (e instanceof FsError && e.code === "not_found") return fail(404);
+      fail(403);
+    }
+  });
+
   const wss = new WebSocketServer({ noServer: true, maxPayload: 1024 * 1024 });
   server.on("upgrade", (req, socket, head) => {
     const url = new URL(req.url ?? "/", `http://${req.headers.host}`);
@@ -168,7 +198,7 @@ export async function startServer(opts: { port: number; onStop?: () => void }): 
         let result: unknown;
         switch (msg.method) {
           case "hello":
-            result = { home, projects };
+            result = { home, projects, previewPort };
             break;
           case "fs.list":
             result = await files.list(params.dir);
@@ -231,6 +261,11 @@ export async function startServer(opts: { port: number; onStop?: () => void }): 
     server.listen(opts.port, "127.0.0.1", () => resolve());
   });
   port = (server.address() as { port: number }).port;
+  await new Promise<void>((resolve, reject) => {
+    previewServer.once("error", reject);
+    previewServer.listen(0, "127.0.0.1", () => resolve());
+  });
+  previewPort = (previewServer.address() as { port: number }).port;
 
   return {
     port,
@@ -240,6 +275,7 @@ export async function startServer(opts: { port: number; onStop?: () => void }): 
       await watchers.close();
       for (const c of clients) c.close();
       await new Promise<void>((r) => server.close(() => r()));
+      await new Promise<void>((r) => previewServer.close(() => r()));
     },
   };
 }

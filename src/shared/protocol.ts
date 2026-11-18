@@ -42,7 +42,7 @@ export interface Settings {
 }
 
 export interface MethodMap {
-  hello: { params: Record<string, never>; result: { home: string; projects: string[] } };
+  hello: { params: Record<string, never>; result: { home: string; projects: string[]; previewPort: number } };
   "project.open": { params: { path: string }; result: { path: string } };
   "project.close": { params: { path: string }; result: Record<string, never> };
   "fs.list": { params: { dir: string }; result: { dir: string; entries: Entry[] } };

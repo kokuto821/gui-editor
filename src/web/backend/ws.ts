@@ -84,4 +84,12 @@ export class WsBackend implements Backend {
   fileUrl(path: string): string {
     return fileUrl(path, this.token);
   }
+  private previewPort = 0;
+  setPreviewPort(port: number): void {
+    this.previewPort = port;
+  }
+  previewBase(dir: string): string {
+    const enc = dir.split("/").map(encodeURIComponent).join("/");
+    return `http://${location.hostname}:${this.previewPort}/p/${this.token}${enc}${enc.endsWith("/") ? "" : "/"}`;
+  }
 }

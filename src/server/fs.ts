@@ -14,6 +14,22 @@ export const IMAGE_TYPES: Record<string, string> = {
 const SNIFF_BYTES = 8192;
 const MAX_TEXT_BYTES = 2 * 1024 * 1024;
 
+/** 図解（HTML）が読み込んでよい、画面まわりのファイル。これ以外（テキスト、設定など）は配らない。 */
+export const ASSET_TYPES: Record<string, string> = {
+  ...IMAGE_TYPES,
+  html: "text/html; charset=utf-8",
+  htm: "text/html; charset=utf-8",
+  css: "text/css; charset=utf-8",
+  js: "text/javascript; charset=utf-8",
+  mjs: "text/javascript; charset=utf-8",
+  json: "application/json; charset=utf-8",
+  ico: "image/x-icon",
+  woff: "font/woff",
+  woff2: "font/woff2",
+  ttf: "font/ttf",
+  otf: "font/otf",
+};
+
 export class FsError extends Error {
   constructor(
     public code: "forbidden" | "not_found" | "not_dir" | "not_file" | "bad_request" | "conflict" | "exists",
@@ -149,10 +165,15 @@ export class Files {
   }
 
   /** 画像として配ってよいファイルか確かめ、実体のパスと型を返す。 */
-  async imageFile(p: unknown): Promise<{ real: string; type: string; size: number }> {
+  imageFile(p: unknown) {
+    return this.staticFile(p, IMAGE_TYPES, "画像ではありません");
+  }
+
+  /** types にある拡張子のファイルだけを配る。 */
+  async staticFile(p: unknown, types: Record<string, string>, msg = "配れないファイルです"): Promise<{ real: string; type: string; size: number }> {
     const real = await this.resolve(p);
-    const type = IMAGE_TYPES[extOf(real)];
-    if (!type) throw new FsError("forbidden", "画像ではありません");
+    const type = types[extOf(real)];
+    if (!type) throw new FsError("forbidden", msg);
     const st = await fs.stat(real);
     if (!st.isFile()) throw new FsError("not_file", "ファイルではありません");
     return { real, type, size: st.size };

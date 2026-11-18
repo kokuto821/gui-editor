@@ -8,7 +8,8 @@
 .md ul, .md ol { margin: 8px 0; padding-left: 22px; }
 .md li { margin: 3px 0; }
 .md li.task { list-style: none; margin-left: -20px; }
-.md li.task input { margin-right: 8px; accent-color: var(--color-ink); vertical-align: -1px; }
+.md li.task input { margin-right: 8px; accent-color: var(--color-ink); vertical-align: -1px; cursor: pointer; }
+.md li.task.done { color: var(--color-mute); text-decoration: line-through; }
 .md a { color: var(--color-ink); text-decoration: underline; text-underline-offset: 2px; text-decoration-color: var(--color-mute); }
 .md blockquote { margin: 12px 0; padding: 2px 14px; border-left: 3px solid var(--color-line); color: var(--color-mute); }
 .md hr { border: 0; border-top: 1px solid var(--color-line); margin: 20px 0; }
@@ -20,3 +21,7 @@
 .md th { color: var(--color-mute); font-weight: 500; }
 .md img { max-width: 100%; height: auto; border: 1px solid var(--color-line); border-radius: 6px; }
 .md .mut { color: var(--color-mute); }
+
+.md .mmd { margin: 14px 0; overflow: auto; text-align: center; min-height: 40px; color: var(--color-mute); font-size: 12.5px; }
+.md .mmd svg { max-width: 100%; height: auto; }
+.mmd-err { color: var(--color-del-ink); font-size: 12.5px; margin: 0 0 6px; text-align: left; white-space: pre-wrap; }
