@@ -1,4 +1,4 @@
-import { currentOf, useApp, useProject } from "../stores/app";
+import { currentOf, shownOf, useApp, useProject } from "../stores/app";
 import { baseOf, isInside, tilde } from "../paths";
 import { useDocs } from "../stores/docs";
 
@@ -26,7 +26,8 @@ export function StatusBar() {
       if (c) parts.push(c.name);
     }
   }
-  const editing = !!(c && p?.mode[c.path] === "edit" && docs[c.path]);
+  const f = shownOf(p, entries);
+  const editing = !!(f && p?.mode[f.path] === "edit" && docs[f.path]);
   return (
     <div className="flex items-center gap-3 border-t border-line px-3 text-xs text-mute">
       <span className="min-w-0 flex-1 truncate" title={p?.root}>
