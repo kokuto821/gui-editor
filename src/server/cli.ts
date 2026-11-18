@@ -6,11 +6,22 @@ import { type Lock, logPath, readLock, removeLock, writeLock } from "./lock.js";
 import { openBrowser } from "./open-browser.js";
 import { startServer } from "./server.js";
 
+export const DEFAULT_PORT = 27182; // 他のツールと被りにくく、Linux の一時ポート（32768〜）より下の番号
+
 const USAGE = `使い方:
   cgui [フォルダ]     フォルダをプロジェクトとして開く（省略すると今のフォルダ）
   cgui stop           動いているサーバーを止める
-  cgui --no-open ...  ブラウザを開かず、URL だけ表示する
+  cgui --open ...     ブラウザも開く（既定では URL を表示するだけ）
+  cgui --port N ...   ポートを指定する（既定 ${DEFAULT_PORT}。環境変数 CGUI_PORT でも指定できる）
   cgui -h, --help     この説明`;
+
+function tailLog(): string {
+  try {
+    return fs.readFileSync(logPath(), "utf8").slice(-2000);
+  } catch {
+    return "";
+  }
+}
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -28,10 +39,10 @@ async function post(lock: Lock, route: string, body: unknown): Promise<Response 
 }
 
 /** サーバーを背景で起動し、ロックファイルができるのを待つ。 */
-async function spawnDaemon(): Promise<Lock | null> {
+async function spawnDaemon(port: number): Promise<Lock | null> {
   fs.mkdirSync(path.dirname(logPath()), { recursive: true });
-  const log = fs.openSync(logPath(), "a");
-  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), "--daemon"], {
+  const log = fs.openSync(logPath(), "w"); // 起動に失敗したとき、今回の原因だけが残るようにする
+  const child = spawn(process.execPath, [fileURLToPath(import.meta.url), "--daemon", `--port=${port}`], {
     detached: true,
     stdio: ["ignore", log, log],
   });
@@ -44,9 +55,21 @@ async function spawnDaemon(): Promise<Lock | null> {
   return null;
 }
 
-async function runDaemon(): Promise<void> {
+function parsePort(args: string[]): number {
+  const i = args.findIndex((a) => a === "--port" || a.startsWith("--port="));
+  const raw = i < 0 ? process.env.CGUI_PORT : args[i]!.includes("=") ? args[i]!.split("=")[1] : args[i + 1];
+  if (raw === undefined || raw === "") return DEFAULT_PORT;
+  const n = Number(raw);
+  if (!Number.isInteger(n) || n < 1 || n > 65535) {
+    console.error(`ポートの指定が正しくありません: ${raw}`);
+    process.exit(1);
+  }
+  return n;
+}
+
+async function runDaemon(port: number): Promise<void> {
   let stopping = false;
-  const srv = await startServer({ onStop: () => void stop() });
+  const srv = await startServer({ port, onStop: () => void stop() });
   async function stop() {
     if (stopping) return;
     stopping = true;
@@ -62,11 +85,13 @@ async function runDaemon(): Promise<void> {
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  if (args.includes("--daemon")) return runDaemon();
+  if (args.includes("--daemon")) return runDaemon(parsePort(args));
   if (args.includes("-h") || args.includes("--help")) return void console.log(USAGE);
 
-  const noOpen = args.includes("--no-open");
-  const rest = args.filter((a) => !a.startsWith("-"));
+  const port = parsePort(args);
+  const open = args.includes("--open");
+  const portIdx = args.indexOf("--port");
+  const rest = args.filter((a, i) => !a.startsWith("-") && !(portIdx >= 0 && i === portIdx + 1));
 
   if (rest[0] === "stop") {
     const lock = readLock();
@@ -87,18 +112,23 @@ async function main(): Promise<void> {
   let lock = readLock();
   let res = lock ? await post(lock, "/__open", { path: target }) : null;
   if (!res) {
-    lock = await spawnDaemon();
+    lock = await spawnDaemon(port);
     res = lock ? await post(lock, "/__open", { path: target }) : null;
   }
   if (!lock || !res || !res.ok) {
-    console.error(`サーバーを起動できませんでした。ログ: ${logPath()}`);
+    const busy = /EADDRINUSE/.test(tailLog());
+    console.error(
+      busy
+        ? `ポート ${port} は、ほかのプログラムが使っています。--port で別の番号を指定してください。`
+        : `サーバーを起動できませんでした。ログ: ${logPath()}`,
+    );
     process.exit(1);
   }
   const { clients } = (await res.json()) as { clients: number };
   const url = `http://127.0.0.1:${lock.port}/?t=${lock.token}`;
   console.log(`cgui: ${target}\n${url}`);
-  // 画面がすでに開いていれば、タブが増えるだけで済む
-  if (clients > 0 || noOpen) return;
+  // 既定ではブラウザを開かない。--open のときだけ開く（画面がすでに開いていれば、タブが増えるだけで済む）
+  if (!open || clients > 0) return;
   if (!(await openBrowser(url))) console.log("ブラウザを開けませんでした。上の URL を開いてください。");
 }
 

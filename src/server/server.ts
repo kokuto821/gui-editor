@@ -35,7 +35,7 @@ async function readBody(req: http.IncomingMessage, limit = 64 * 1024): Promise<s
   return Buffer.concat(chunks).toString("utf8");
 }
 
-export async function startServer(opts: { onStop?: () => void } = {}): Promise<RunningServer> {
+export async function startServer(opts: { port: number; onStop?: () => void }): Promise<RunningServer> {
   const home = await fsp.realpath(os.homedir());
   const roots = new Set<string>();
   const projects: string[] = [];
@@ -166,10 +166,10 @@ export async function startServer(opts: { onStop?: () => void } = {}): Promise<R
     });
   });
 
-  // 127.0.0.1 だけで待ち受ける。ポートは空いているものを自動で選ぶ。
+  // 127.0.0.1 だけで待ち受ける。ポートは固定（0 を渡したときだけ、空いているものを選ぶ）。
   await new Promise<void>((resolve, reject) => {
     server.once("error", reject);
-    server.listen(0, "127.0.0.1", () => resolve());
+    server.listen(opts.port, "127.0.0.1", () => resolve());
   });
   port = (server.address() as { port: number }).port;
 

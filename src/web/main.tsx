@@ -7,7 +7,7 @@ import { installKeys } from "./keys";
 import { useApp } from "./stores/app";
 
 installKeys();
-void useApp.getState().init(backend);
+if (backend.hasToken) void useApp.getState().init(backend);
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

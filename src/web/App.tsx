@@ -1,3 +1,4 @@
+import { backend } from "./backend";
 import { FileList } from "./components/FileList";
 import { Preview } from "./components/Preview";
 import { ProjectTabs } from "./components/ProjectTabs";
@@ -7,6 +8,17 @@ import { useApp } from "./stores/app";
 export function App() {
   const ready = useApp((s) => s.ready);
   const hasProject = useApp((s) => s.projects.length > 0);
+
+  if (!backend.hasToken)
+    return (
+      <div className="grid h-full place-items-center p-6 text-center text-mute">
+        <p>
+          このページは、トークン付きの URL から開く必要があります。
+          <br />
+          ターミナルで <code className="mx-1 font-mono">cgui .</code> を実行すると、URL が表示されます。
+        </p>
+      </div>
+    );
 
   return (
     <div className="grid h-full grid-rows-[auto_minmax(0,1fr)_28px]">

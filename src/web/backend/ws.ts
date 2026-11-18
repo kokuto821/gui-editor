@@ -20,6 +20,8 @@ function findToken(): string {
 
 export class WsBackend implements Backend {
   private token = findToken();
+  /** トークン付きの URL から開いていないときは、つながない */
+  readonly hasToken = this.token !== "";
   private ws: WebSocket | null = null;
   private nextId = 1;
   private pending = new Map<number, { resolve: (v: never) => void; reject: (e: Error) => void }>();
@@ -29,7 +31,7 @@ export class WsBackend implements Backend {
   private retry = 0;
 
   constructor() {
-    this.connect();
+    if (this.hasToken) this.connect();
   }
 
   private connect(): void {
