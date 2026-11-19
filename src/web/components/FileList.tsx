@@ -2,7 +2,7 @@ import clsx from "clsx";
 import { useEffect, useRef } from "react";
 import type { Entry } from "../../shared/protocol";
 import { baseOf, dirOf, extOf, tilde } from "../paths";
-import { currentOf, useApp, useProject } from "../stores/app";
+import { UP, currentOf, useApp, useProject } from "../stores/app";
 import { isDirty, useDocs } from "../stores/docs";
 import { useGit } from "../stores/git";
 import { bookmarksOf, useSettings } from "../stores/settings";
@@ -10,6 +10,8 @@ import { useUi } from "../stores/ui";
 import { IconBookmark, IconFile, IconGit, IconMore, IconX } from "./Icons";
 
 const badge = (e: Pick<Entry, "kind" | "name">) => (e.kind === "dir" ? "▸" : extOf(e.name) || "·");
+/** 拡張子は小さい文字で。記号（フォルダの ▸、拡張子なしの ·）は小さいと見えないので大きく */
+const badgeCls = (text: string) => clsx("w-9 flex-none font-mono text-mute uppercase", text === "▸" || text === "·" ? "text-[13px] leading-none" : "text-[9px]");
 
 /** 上の切替: ブックマーク / ファイル / Git の差分（バッジは未コミットの件数） */
 export function SideSwitch() {
@@ -101,6 +103,7 @@ export function FileList() {
   const pane = useApp((s) => s.pane);
   const select = useApp((s) => s.select);
   const enter = useApp((s) => s.enter);
+  const up = useApp((s) => s.up);
   const setPane = useApp((s) => s.setPane);
   const openInNewTab = useApp((s) => s.openInNewTab);
   const docs = useDocs((s) => s.docs);
@@ -119,14 +122,33 @@ export function FileList() {
   return (
     <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto p-1.5" role="listbox" aria-label="ファイル" onMouseDown={() => setPane("list")}>
       {error && <p className="px-3 py-2 text-del-ink">{error}</p>}
-      {!error && entries.length === 0 && <p className="px-3 py-2 text-mute">空のフォルダです</p>}
+      {!error && !entries.some((e) => e.name !== UP) && <p className="px-3 py-2 text-mute">空のフォルダです</p>}
       {entries.map((e) => {
         const full = path(e.name);
         const sel = e.name === selName;
+        if (e.name === UP)
+          return (
+            <div key={UP} className={clsx("row flex items-center rounded-md", sel && (pane === "preview" ? "bg-soft/60" : "bg-soft"))} role="option" aria-selected={sel} data-row="">
+              <button
+                type="button"
+                tabIndex={-1}
+                title="1つ上のフォルダへ"
+                className="flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-0.5 text-left"
+                onClick={() => {
+                  if (Date.now() - enteredAt.current < 500) return;
+                  enteredAt.current = Date.now();
+                  void up();
+                }}
+              >
+                <span className="w-9 flex-none font-mono text-[13px] leading-none text-mute">↑</span>
+                <span className="truncate text-mute">..</span>
+              </button>
+            </div>
+          );
         if (renaming === full)
           return (
             <div key={e.name} className="flex items-center gap-2.5 rounded-md bg-soft px-2.5 py-0.5">
-              <span className="w-9 flex-none font-mono text-[9px] text-mute uppercase">{badge(e)}</span>
+              <span className={badgeCls(badge(e))}>{badge(e)}</span>
               <RenameInput entry={e} path={full} />
             </div>
           );
@@ -144,7 +166,7 @@ export function FileList() {
               }}
               onDoubleClick={() => e.kind !== "dir" && Date.now() - enteredAt.current >= 500 && void openInNewTab(full)}
             >
-              <span className="w-9 flex-none font-mono text-[9px] text-mute uppercase">{badge(e)}</span>
+              <span className={badgeCls(badge(e))}>{badge(e)}</span>
               <span className={clsx("truncate", e.kind === "binary" && "text-mute")}>
                 {e.name}
                 {e.kind === "dir" ? "/" : ""}
@@ -180,7 +202,7 @@ export function BookmarkList() {
         return (
           <div key={path} className={clsx("group flex items-center rounded-md", path === cur && "bg-soft")} role="option" aria-selected={path === cur}>
             <button type="button" tabIndex={-1} title={path} className="flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-0.5 text-left" onClick={() => void selectBm(path)} onDoubleClick={() => void openInNewTab(path)}>
-              <span className="w-9 flex-none font-mono text-[9px] text-mute uppercase">{extOf(path) || "·"}</span>
+              <span className={badgeCls(extOf(path) || "·")}>{extOf(path) || "·"}</span>
               <span className="truncate">{baseOf(path)}</span>
               {dir && <span className="truncate text-xs text-mute">{dir}/</span>}
               {isDirty(docs[path]) && <span className="ml-auto flex-none text-[8px]" title="未保存">●</span>}

@@ -104,6 +104,9 @@ const blank = (root: string): Project => ({
   mode: {},
 });
 
+/** 一覧の先頭に置く、1つ上のフォルダへ移る行の名前 */
+export const UP = "..";
+
 /** いまの選択（ファイルかフォルダ）。ブックマークの表示では、ブックマークの選択。 */
 export function currentOf(p: Project | undefined, entries: Entry[]): Current | null {
   if (!p) return null;
@@ -113,6 +116,7 @@ export function currentOf(p: Project | undefined, entries: Entry[]): Current | n
     return path ? { path, name: baseOf(path), isDir: false } : null;
   }
   const e = entries.find((x) => x.name === p.sel[p.cwd]);
+  if (e?.name === UP) return { path: dirOf(p.cwd), name: UP, isDir: true };
   return e ? { path: joinPath(p.cwd, e.name), name: e.name, isDir: e.kind === "dir" } : null;
 }
 
@@ -200,13 +204,16 @@ export const useApp = create<State>()((set, get) => {
     if (!p) return void set({ entries: [], listError: null });
     const my = ++seq;
     try {
-      const { entries } = await backend.call("fs.list", { dir: p.cwd });
+      const { entries: listed } = await backend.call("fs.list", { dir: p.cwd });
       if (my !== seq) return;
+      // 上へ移れるときは、先頭に「..」の行を置く
+      const parent = dirOf(p.cwd);
+      const entries: Entry[] = parent !== p.cwd && canVisit(p, parent) ? [{ name: UP, kind: "dir", size: 0, mtime: 0 }, ...listed] : listed;
       const want = project()?.sel[p.cwd];
       const name =
         entries.find((e) => e.name === want)?.name ??
         // はじめて開いたときは、計画（PLAN.md）があればそれを選ぶ
-        (p.cwd === p.root && entries.some((e) => e.name === "PLAN.md") ? "PLAN.md" : entries[0]?.name);
+        (p.cwd === p.root && listed.some((e) => e.name === "PLAN.md") ? "PLAN.md" : listed[0]?.name);
       if (name && name !== want) patch((q) => withSel(q, q.cwd, name));
       set({ entries, listError: null });
       syncTab();
@@ -410,6 +417,7 @@ export const useApp = create<State>()((set, get) => {
       const p = project();
       const c = cur();
       if (!p || p.side !== "files" || !c?.isDir) return;
+      if (c.name === UP) return get().up();
       patch((q) => ({ ...q, cwd: c.path }));
       await refresh();
     },

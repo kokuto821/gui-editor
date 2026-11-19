@@ -1,4 +1,4 @@
-import { currentOf, shownOf, useApp, useProject } from "../stores/app";
+import { UP, currentOf, shownOf, useApp, useProject } from "../stores/app";
 import { baseOf, isInside, tilde } from "../paths";
 import { useDocs } from "../stores/docs";
 
@@ -23,7 +23,7 @@ export function StatusBar() {
       // プロジェクトの中は、フォルダからの相対パスで。外にいるときは、~ から
       if (isInside(p.root, dir)) parts.push(...dir.slice(p.root.length).split("/").filter(Boolean));
       else parts.push(tilde(dir, home));
-      if (c) parts.push(c.name);
+      if (c && c.name !== UP) parts.push(c.name);
     }
   }
   const f = shownOf(p, entries);
