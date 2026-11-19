@@ -20,7 +20,7 @@ interface DocsState {
   others: Record<string, ReadResult | { kind: "error"; message: string }>;
   load(path: string): Promise<void>;
   edit(path: string, text: string): void;
-  save(path: string): Promise<"ok" | "conflict" | "error">;
+  save(path: string): Promise<"ok" | "conflict" | "forbidden" | "error">;
   /** 衝突したとき: 外の内容に替える（編集は捨てる） */
   takeRemote(path: string): void;
   /** 衝突したとき: 編集を続ける（保存すると外の変更を上書きする） */
@@ -104,7 +104,7 @@ export const useDocs = create<DocsState>()((set, get) => {
           if (r.kind === "text") put({ ...(get().docs[path] ?? d), conflict: { text: r.text, mtime: r.mtime } });
           return "conflict";
         }
-        return "error";
+        return e instanceof BackendError && e.code === "forbidden" ? "forbidden" : "error";
       }
     },
 

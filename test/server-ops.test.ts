@@ -3,7 +3,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { Files } from "../src/server/fs";
+import { Files, asFsError } from "../src/server/fs";
 import * as git from "../src/server/git";
 import { sanitize } from "../src/server/settings";
 
@@ -15,7 +15,7 @@ beforeAll(async () => {
   proj = path.join(tmp, "proj");
   await fs.mkdir(home);
   await fs.mkdir(proj);
-  files = new Files(home, new Set([proj]));
+  files = new Files(home);
 });
 afterAll(() => fs.rm(tmp, { recursive: true, force: true }));
 
@@ -31,10 +31,11 @@ describe("write / rename / delete", () => {
     await expect(files.write(f, "three", mtime)).rejects.toMatchObject({ code: "conflict" });
     expect(await fs.readFile(f, "utf8")).toBe("two");
   });
-  it("許す場所の外には書けない", async () => {
+  it("ホームの外にも書ける", async () => {
     const out = path.join(tmp, "out.txt");
     await fs.writeFile(out, "x");
-    await expect(files.write(out, "y", undefined)).rejects.toMatchObject({ code: "forbidden" });
+    await files.write(out, "y", undefined);
+    expect(await fs.readFile(out, "utf8")).toBe("y");
   });
   it("名前変更: 同名があれば断り、不正な名前も断る", async () => {
     await fs.writeFile(path.join(proj, "r1.txt"), "1");
@@ -44,13 +45,33 @@ describe("write / rename / delete", () => {
     await expect(files.rename(path.join(proj, "r3.txt"), "../x")).rejects.toMatchObject({ code: "bad_request" });
     await expect(files.rename(path.join(proj, "r3.txt"), "..")).rejects.toMatchObject({ code: "bad_request" });
   });
-  it("削除: フォルダは中身ごと消え、ホームと外は消せない", async () => {
+  it("削除: フォルダは中身ごと消え、ホームとその上は消せない", async () => {
     await fs.mkdir(path.join(proj, "d/e"), { recursive: true });
     await fs.writeFile(path.join(proj, "d/e/f.txt"), "x");
     await files.delete(path.join(proj, "d"));
     await expect(fs.stat(path.join(proj, "d"))).rejects.toThrow();
     await expect(files.delete(home)).rejects.toMatchObject({ code: "forbidden" });
-    await expect(files.delete(path.join(tmp, "out.txt"))).rejects.toMatchObject({ code: "forbidden" });
+    await expect(files.delete(tmp)).rejects.toMatchObject({ code: "forbidden" }); // ホームの親
+    await expect(files.rename(home, "h2")).rejects.toMatchObject({ code: "forbidden" });
+    await files.delete(path.join(tmp, "out.txt")); // ホームの外のファイルは消せる
+  });
+  it.skipIf(process.getuid?.() === 0)("OS に断られたら「権限がありません」（forbidden）", async () => {
+    const locked = path.join(proj, "locked");
+    await fs.mkdir(locked);
+    await fs.writeFile(path.join(locked, "a.txt"), "a");
+    const ro = path.join(proj, "ro.txt");
+    await fs.writeFile(ro, "ro");
+    await fs.chmod(ro, 0o444);
+    await fs.chmod(locked, 0o000);
+    try {
+      const forbidden = { code: "forbidden", message: "権限がありません" };
+      const call = (f: () => Promise<unknown>) => f().catch((e) => { throw asFsError(e); });
+      await expect(call(() => files.list(locked))).rejects.toMatchObject(forbidden);
+      await expect(call(() => files.read(path.join(locked, "a.txt")))).rejects.toMatchObject(forbidden);
+      await expect(call(() => files.write(ro, "x", undefined))).rejects.toMatchObject(forbidden);
+    } finally {
+      await fs.chmod(locked, 0o755);
+    }
   });
   it("リンクを消しても、リンク先は消えない", async () => {
     const target = path.join(proj, "keep.txt");
