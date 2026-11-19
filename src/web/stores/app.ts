@@ -173,7 +173,6 @@ export const useApp = create<State>()((set, get) => {
   const withSel = (p: Project, dir: string, name: string): Project => ({ ...p, sel: { ...p.sel, [dir]: name } });
   const cur = () => currentOf(project(), get().entries);
   const shown = () => shownOf(project(), get().entries);
-  const canVisit = (p: Project, dir: string) => isInside(get().home, dir) || isInside(p.root, dir);
   const settings = () => useSettings.getState();
 
   /** 開いているタブの中身を、いまの選択に合わせる（一覧で選び直すと、アクティブなタブの中身が替わる）。 */
@@ -208,7 +207,7 @@ export const useApp = create<State>()((set, get) => {
       if (my !== seq) return;
       // 上へ移れるときは、先頭に「..」の行を置く
       const parent = dirOf(p.cwd);
-      const entries: Entry[] = parent !== p.cwd && canVisit(p, parent) ? [{ name: UP, kind: "dir", size: 0, mtime: 0 }, ...listed] : listed;
+      const entries: Entry[] = parent !== p.cwd ? [{ name: UP, kind: "dir", size: 0, mtime: 0 }, ...listed] : listed;
       const want = project()?.sel[p.cwd];
       const name =
         entries.find((e) => e.name === want)?.name ??
@@ -277,7 +276,7 @@ export const useApp = create<State>()((set, get) => {
 
   async function navigate(path: string) {
     const p = project();
-    if (!p || !canVisit(p, path)) return;
+    if (!p) return;
     const dir = dirOf(path);
     const bookmarked = p.side === "bm" && bookmarksOf(settings().s, p.root).includes(path);
     patch((q) =>
@@ -426,7 +425,7 @@ export const useApp = create<State>()((set, get) => {
       const p = project();
       if (!p || p.side !== "files") return;
       const parent = dirOf(p.cwd);
-      if (parent === p.cwd || !canVisit(p, parent)) return;
+      if (parent === p.cwd) return; // ルートより上はない
       const from = baseOf(p.cwd);
       patch((q) => ({ ...withSel(q, parent, from), cwd: parent }));
       await refresh();
@@ -555,6 +554,7 @@ export const useApp = create<State>()((set, get) => {
       if (!isDirty(doc)) return;
       const r = await useDocs.getState().save(c.path);
       if (r === "conflict") useUi.getState().say("外で書き換えられています。上の表示から選んでください");
+      else if (r === "forbidden") useUi.getState().say("権限がないため、保存できませんでした");
       else if (r === "error") useUi.getState().say("保存できませんでした");
     },
 

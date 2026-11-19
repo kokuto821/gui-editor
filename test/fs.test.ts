@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { FsError, Files, looksLikeText } from "../src/server/fs";
+import { Files, looksLikeText } from "../src/server/fs";
 import { isInside } from "../src/server/paths";
 
 describe("looksLikeText", () => {
@@ -44,7 +44,7 @@ describe("Files", () => {
     await fs.writeFile(path.join(proj, "x.bin"), Buffer.from([1, 2, 0, 3]));
     await fs.writeFile(path.join(outside, "secret.png"), "secret");
     await fs.symlink(path.join(outside, "secret.png"), path.join(proj, "link.png"));
-    files = new Files(home, new Set([proj]));
+    files = new Files(home);
   });
   afterAll(() => fs.rm(tmp, { recursive: true, force: true }));
 
@@ -57,14 +57,14 @@ describe("Files", () => {
       "link.png:image",
       "pic.png:image",
       "x.bin:binary",
-    ]); // link.png は外を指すリンクだが、一覧には出る。中身は読めない（下のテスト）
+    ]);
   });
-  it("許す場所の外は断る", async () => {
-    await expect(files.list(outside)).rejects.toMatchObject({ code: "forbidden" });
-    await expect(files.read(path.join(outside, "secret.png"))).rejects.toBeInstanceOf(FsError);
+  it("ホームの外も読める", async () => {
+    expect((await files.list(outside)).entries.map((e) => e.name)).toEqual(["secret.png"]);
+    expect(await files.read(path.join(outside, "secret.png"))).toMatchObject({ kind: "image" });
   });
-  it("シンボリックリンクで外に出られない", async () => {
-    await expect(files.imageFile(path.join(proj, "link.png"))).rejects.toMatchObject({ code: "forbidden" });
+  it("シンボリックリンクは実体のパスで配る", async () => {
+    expect((await files.imageFile(path.join(proj, "link.png"))).real).toBe(path.join(outside, "secret.png"));
   });
   it("相対パスは断る", async () => {
     await expect(files.list("../x")).rejects.toMatchObject({ code: "bad_request" });

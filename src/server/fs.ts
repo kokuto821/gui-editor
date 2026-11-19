@@ -39,6 +39,12 @@ export class FsError extends Error {
   }
 }
 
+/** OS に断られたエラー（権限がない）を FsError にする。それ以外は、そのまま返す。 */
+export function asFsError(e: unknown): unknown {
+  const code = (e as NodeJS.ErrnoException | null)?.code;
+  return code === "EACCES" || code === "EPERM" ? new FsError("forbidden", "権限がありません") : e;
+}
+
 export function extOf(name: string): string {
   const i = name.lastIndexOf(".");
   return i <= 0 ? "" : name.slice(i + 1).toLowerCase();
@@ -68,23 +74,19 @@ async function sniff(file: string, size: number): Promise<Uint8Array> {
 }
 
 export class Files {
-  /** 読み書きを許す場所: ホームと、開いているプロジェクトのフォルダ。 */
-  constructor(
-    public readonly home: string,
-    private readonly roots: Set<string>,
-  ) {}
+  /** どこでも読み書きできる（OS の権限まかせ）。ホームとその上のフォルダだけは、名前変更・削除させない。 */
+  constructor(public readonly home: string) {}
 
-  /** realpath で実体を確かめ、許す場所の外なら断る。 */
+  /** 絶対パスか確かめ、realpath で実体にする。 */
   async resolve(p: unknown): Promise<string> {
     if (typeof p !== "string" || !path.isAbsolute(p)) throw new FsError("bad_request", "絶対パスで指定してください");
     let real: string;
     try {
       real = await fs.realpath(p);
-    } catch {
-      throw new FsError("not_found", "見つかりません");
+    } catch (e) {
+      const err = asFsError(e);
+      throw err instanceof FsError ? err : new FsError("not_found", "見つかりません");
     }
-    const allowed = [this.home, ...this.roots].some((r) => isInside(r, real));
-    if (!allowed) throw new FsError("forbidden", "このフォルダは開けません");
     return real;
   }
 
@@ -145,7 +147,7 @@ export class Files {
     if (typeof name !== "string" || !name || name === "." || name === ".." || /[/\\\0]/.test(name))
       throw new FsError("bad_request", "名前が正しくありません");
     const real = await this.resolve(p);
-    if (real === this.home) throw new FsError("forbidden", "名前を変えられません");
+    if (isInside(real, this.home)) throw new FsError("forbidden", "名前を変えられません");
     const target = path.join(path.dirname(real), name);
     if (target === real) return { path: real };
     const exists = await fs.lstat(target).then(() => true, () => false);
@@ -154,13 +156,13 @@ export class Files {
     return { path: target };
   }
 
-  /** ファイルやフォルダ（中身ごと）を削除する。ホームとルートは消さない。 */
+  /** ファイルやフォルダ（中身ごと）を削除する。ホームとその上（ルートまで）は消さない。 */
   async delete(p: unknown): Promise<void> {
     if (typeof p !== "string" || !path.isAbsolute(p)) throw new FsError("bad_request", "絶対パスで指定してください");
     // リンクそのものを消せるように、末尾は realpath しない（親の実体で場所を確かめる）
     const parent = await this.resolve(path.dirname(path.normalize(p)));
     const target = path.join(parent, path.basename(p));
-    if (target === this.home || target === path.parse(target).root) throw new FsError("forbidden", "削除できません");
+    if (isInside(target, this.home) || target === path.parse(target).root) throw new FsError("forbidden", "削除できません");
     await fs.rm(target, { recursive: true });
   }
 

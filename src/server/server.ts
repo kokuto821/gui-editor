@@ -8,7 +8,8 @@ import { fileURLToPath } from "node:url";
 import sirv from "sirv";
 import { WebSocket, WebSocketServer } from "ws";
 import type { Response, ServerEvent } from "../shared/protocol.js";
-import { ASSET_TYPES, FsError, Files } from "./fs.js";
+import { ASSET_TYPES, FsError, Files, asFsError } from "./fs.js";
+import { isInside } from "./paths.js";
 import * as git from "./git.js";
 import { loadSettings, saveSettings, sanitize } from "./settings.js";
 import { Watchers } from "./watch.js";
@@ -41,7 +42,7 @@ export async function startServer(opts: { port: number; onStop?: () => void }): 
   const home = await fsp.realpath(os.homedir());
   const roots = new Set<string>();
   const projects: string[] = [];
-  const files = new Files(home, roots);
+  const files = new Files(home);
   const token = crypto.randomBytes(24).toString("hex");
   const clients = new Set<WebSocket>();
 
@@ -63,8 +64,8 @@ export async function startServer(opts: { port: number; onStop?: () => void }): 
     if (!roots.has(real)) {
       roots.add(real);
       projects.push(real);
-      // ホームそのものは監視しない（巨大で、監視の上限を使い切るため）。そのときは、画面を開き直すか戻ったときに読み直す
-      if (real !== home) await watchers.add(real).catch(() => {}); // 監視できなくても表示は続ける
+      // ホームとその上（ルートまで）は監視しない（巨大で、監視の上限を使い切るため）。そのときは、画面を開き直すか戻ったときに読み直す
+      if (!isInside(real, home)) await watchers.add(real).catch(() => {}); // 監視できなくても表示は続ける
     }
     broadcast({ event: "project.open", path: real });
     return real;
@@ -132,7 +133,8 @@ export async function startServer(opts: { port: number; onStop?: () => void }): 
       }
 
       serveStatic(req, res, () => send(404, { error: "not found" }));
-    } catch (e) {
+    } catch (err) {
+      const e = asFsError(err);
       if (e instanceof FsError) return send(e.code === "forbidden" ? 403 : 400, { error: e.message });
       send(500, { error: "internal error" });
     }
@@ -247,8 +249,9 @@ export async function startServer(opts: { port: number; onStop?: () => void }): 
             return reply({ id, error: { code: "unknown_method", message: "未対応の操作です" } });
         }
         reply({ id, result });
-      } catch (e) {
+      } catch (err) {
         if (id < 0) return;
+        const e = asFsError(err);
         if (e instanceof FsError) reply({ id, error: { code: e.code, message: e.message } });
         else reply({ id, error: { code: "internal", message: "内部エラー" } });
       }
