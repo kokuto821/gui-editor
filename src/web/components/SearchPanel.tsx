@@ -126,7 +126,6 @@ export function SearchPanel() {
             </div>
           );
         })}
-        {r.truncated && <Note>一部だけ表示しています</Note>}
       </>
     );
 
