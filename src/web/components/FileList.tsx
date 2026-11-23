@@ -9,7 +9,8 @@ import { bookmarksOf, useSettings } from "../stores/settings";
 import { useUi } from "../stores/ui";
 import { IconBookmark, IconFile, IconGit, IconMore, IconX } from "./Icons";
 
-const badge = (e: Pick<Entry, "kind" | "name">) => (e.kind === "dir" ? "▸" : extOf(e.name) || "·");
+const extBadge = (name: string) => extOf(name).slice(0, 4) || "·";
+const badge = (e: Pick<Entry, "kind" | "name">) => (e.kind === "dir" ? "▸" : extBadge(e.name));
 /** 拡張子は小さい文字で。記号（フォルダの ▸、拡張子なしの ·）は小さいと見えないので大きく */
 const badgeCls = (text: string) => clsx("w-9 flex-none font-mono text-mute uppercase", text === "▸" || text === "·" ? "text-[13px] leading-none" : "text-[9px]");
 
@@ -202,7 +203,7 @@ export function BookmarkList() {
         return (
           <div key={path} className={clsx("group flex items-center rounded-md", path === cur && "bg-soft")} role="option" aria-selected={path === cur}>
             <button type="button" tabIndex={-1} title={path} className="flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-0.5 text-left" onClick={() => void selectBm(path)} onDoubleClick={() => void openInNewTab(path)}>
-              <span className={badgeCls(extOf(path) || "·")}>{extOf(path) || "·"}</span>
+              <span className={badgeCls(extBadge(path))}>{extBadge(path)}</span>
               <span className="truncate">{baseOf(path)}</span>
               {dir && <span className="truncate text-xs text-mute">{dir}/</span>}
               {isDirty(docs[path]) && <span className="ml-auto flex-none text-[8px]" title="未保存">●</span>}
