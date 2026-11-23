@@ -2,11 +2,10 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { DEFAULT_PORT, parseArgs } from "./args.js";
 import { type Lock, loadToken, logPath, readLock, removeLock, writeLock } from "./lock.js";
 import { openBrowser } from "./open-browser.js";
 import { startServer } from "./server.js";
-
-export const DEFAULT_PORT = 27182; // 他のツールと被りにくく、Linux の一時ポート（32768〜）より下の番号
 
 const USAGE = `使い方:
   cgui [フォルダ]     フォルダをプロジェクトとして開く（省略すると今のフォルダ）
@@ -55,18 +54,6 @@ async function spawnDaemon(port: number): Promise<Lock | null> {
   return null;
 }
 
-function parsePort(args: string[]): number {
-  const i = args.findIndex((a) => a === "--port" || a.startsWith("--port="));
-  const raw = i < 0 ? process.env.CGUI_PORT : args[i]!.includes("=") ? args[i]!.split("=")[1] : args[i + 1];
-  if (raw === undefined || raw === "") return DEFAULT_PORT;
-  const n = Number(raw);
-  if (!Number.isInteger(n) || n < 1 || n > 65535) {
-    console.error(`ポートの指定が正しくありません: ${raw}`);
-    process.exit(1);
-  }
-  return n;
-}
-
 async function runDaemon(port: number): Promise<void> {
   let stopping = false;
   const token = loadToken();
@@ -86,13 +73,10 @@ async function runDaemon(port: number): Promise<void> {
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  if (args.includes("--daemon")) return runDaemon(parsePort(args));
+  if (args.includes("--daemon")) return runDaemon(parseArgs(args).port);
   if (args.includes("-h") || args.includes("--help")) return void console.log(USAGE);
 
-  const port = parsePort(args);
-  const open = args.includes("--open");
-  const portIdx = args.indexOf("--port");
-  const rest = args.filter((a, i) => !a.startsWith("-") && !(portIdx >= 0 && i === portIdx + 1));
+  const { port, open, rest } = parseArgs(args);
 
   if (rest[0] === "stop") {
     const lock = readLock();
