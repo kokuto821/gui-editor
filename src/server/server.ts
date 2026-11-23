@@ -16,7 +16,6 @@ import { Watchers } from "./watch.js";
 
 export interface RunningServer {
   port: number;
-  token: string;
   addProject(path: string): Promise<string>;
   close(): Promise<void>;
 }
@@ -38,12 +37,12 @@ async function readBody(req: http.IncomingMessage, limit = 64 * 1024): Promise<s
   return Buffer.concat(chunks).toString("utf8");
 }
 
-export async function startServer(opts: { port: number; onStop?: () => void }): Promise<RunningServer> {
+export async function startServer(opts: { port: number; token: string; onStop?: () => void }): Promise<RunningServer> {
   const home = await fsp.realpath(os.homedir());
   const roots = new Set<string>();
   const projects: string[] = [];
   const files = new Files(home);
-  const token = crypto.randomBytes(24).toString("hex");
+  const { token } = opts;
   const clients = new Set<WebSocket>();
 
   const broadcast = (ev: ServerEvent) => {
@@ -272,7 +271,6 @@ export async function startServer(opts: { port: number; onStop?: () => void }): 
 
   return {
     port,
-    token,
     addProject,
     async close() {
       await watchers.close();

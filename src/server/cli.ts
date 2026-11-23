@@ -2,16 +2,15 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { type Lock, logPath, readLock, removeLock, writeLock } from "./lock.js";
+import { DEFAULT_PORT, parseArgs } from "./args.js";
+import { type Lock, loadToken, logPath, readLock, removeLock, writeLock } from "./lock.js";
 import { openBrowser } from "./open-browser.js";
 import { startServer } from "./server.js";
 
-export const DEFAULT_PORT = 27182; // 他のツールと被りにくく、Linux の一時ポート（32768〜）より下の番号
-
 const USAGE = `使い方:
-  cgui [フォルダ]     フォルダをプロジェクトとして開く（省略すると今のフォルダ）
+  cgui [フォルダ]     フォルダをプロジェクトとして開き、ブラウザも開く（省略すると今のフォルダ）
   cgui stop           動いているサーバーを止める
-  cgui --open ...     ブラウザも開く（既定では URL を表示するだけ）
+  cgui --no-open ...  ブラウザを開かず、URL を表示するだけにする
   cgui --port N ...   ポートを指定する（既定 ${DEFAULT_PORT}。環境変数 CGUI_PORT でも指定できる）
   cgui -h, --help     この説明`;
 
@@ -55,21 +54,10 @@ async function spawnDaemon(port: number): Promise<Lock | null> {
   return null;
 }
 
-function parsePort(args: string[]): number {
-  const i = args.findIndex((a) => a === "--port" || a.startsWith("--port="));
-  const raw = i < 0 ? process.env.CGUI_PORT : args[i]!.includes("=") ? args[i]!.split("=")[1] : args[i + 1];
-  if (raw === undefined || raw === "") return DEFAULT_PORT;
-  const n = Number(raw);
-  if (!Number.isInteger(n) || n < 1 || n > 65535) {
-    console.error(`ポートの指定が正しくありません: ${raw}`);
-    process.exit(1);
-  }
-  return n;
-}
-
 async function runDaemon(port: number): Promise<void> {
   let stopping = false;
-  const srv = await startServer({ port, onStop: () => void stop() });
+  const token = loadToken();
+  const srv = await startServer({ port, token, onStop: () => void stop() });
   async function stop() {
     if (stopping) return;
     stopping = true;
@@ -77,7 +65,7 @@ async function runDaemon(port: number): Promise<void> {
     await srv.close().catch(() => {});
     process.exit(0);
   }
-  writeLock({ pid: process.pid, port: srv.port, token: srv.token });
+  writeLock({ pid: process.pid, port: srv.port, token });
   process.on("SIGTERM", () => void stop());
   process.on("SIGINT", () => void stop());
   console.log(`cgui server started: pid=${process.pid} port=${srv.port}`);
@@ -85,13 +73,10 @@ async function runDaemon(port: number): Promise<void> {
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  if (args.includes("--daemon")) return runDaemon(parsePort(args));
+  if (args.includes("--daemon")) return runDaemon(parseArgs(args).port);
   if (args.includes("-h") || args.includes("--help")) return void console.log(USAGE);
 
-  const port = parsePort(args);
-  const open = args.includes("--open");
-  const portIdx = args.indexOf("--port");
-  const rest = args.filter((a, i) => !a.startsWith("-") && !(portIdx >= 0 && i === portIdx + 1));
+  const { port, open, rest } = parseArgs(args);
 
   if (rest[0] === "stop") {
     const lock = readLock();
@@ -127,7 +112,7 @@ async function main(): Promise<void> {
   const { clients } = (await res.json()) as { clients: number };
   const url = `http://127.0.0.1:${lock.port}/?t=${lock.token}`;
   console.log(`cgui: ${target}\n${url}`);
-  // 既定ではブラウザを開かない。--open のときだけ開く（画面がすでに開いていれば、タブが増えるだけで済む）
+  // 画面がすでに開いていれば、そこにタブが増えるので開かない
   if (!open || clients > 0) return;
   if (!(await openBrowser(url))) console.log("ブラウザを開けませんでした。上の URL を開いてください。");
 }
