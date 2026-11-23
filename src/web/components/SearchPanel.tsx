@@ -69,14 +69,7 @@ export function SearchPanel() {
   const root = p.root;
 
   let body: React.ReactNode;
-  if (r.kind === "idle")
-    body = (
-      <Note>
-        ファイルの中身を探します。大文字小文字は区別しません。
-        <br />
-        .gitignore の対象と、テキストでないファイルは探しません。
-      </Note>
-    );
+  if (r.kind === "idle") body = null;
   else if (r.kind === "pending") body = <Note>検索しています…</Note>;
   else if (r.kind === "error") body = <Note error>{r.message}</Note>;
   else if (!r.hits.length) body = <Note>「{r.q}」に一致する結果はありません</Note>;
@@ -128,7 +121,7 @@ export function SearchPanel() {
             </div>
           );
         })}
-        {r.truncated && <Note>結果が多いため、一部だけ表示しています。言葉を足して絞り込んでください。</Note>}
+        {r.truncated && <Note>一部だけ表示しています</Note>}
       </>
     );
 
@@ -139,7 +132,7 @@ export function SearchPanel() {
         <input
           ref={input}
           value={st.q}
-          placeholder="検索（ファイルの中身）"
+          placeholder="検索"
           aria-label="ファイルの中身を検索"
           spellCheck={false}
           autoComplete="off"

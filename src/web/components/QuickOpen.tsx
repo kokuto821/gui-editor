@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { baseOf, isInside } from "../paths";
+import { isInside } from "../paths";
 import { useApp, useProject } from "../stores/app";
 import { useSearch } from "../stores/search";
 import { badgeCls, extBadge } from "./FileList";
@@ -200,10 +200,6 @@ export function QuickOpen() {
           </span>
           <span>
             <kbd className="rounded border border-line bg-code px-1 font-mono text-[10px] text-ink">Esc</kbd> 閉じる
-          </span>
-          <span className="grow" />
-          <span>
-            {baseOf(root) || "/"} の中（.gitignore の対象は出しません）
           </span>
         </div>
       </div>
