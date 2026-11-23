@@ -2,8 +2,9 @@ import clsx from "clsx";
 import { useRef } from "react";
 import { shownOf, useApp, useProject } from "../stores/app";
 import { isDirty, useDocs } from "../stores/docs";
+import { useSearch } from "../stores/search";
 import { useUi } from "../stores/ui";
-import { IconEye, IconHome, IconLayout, IconPencil, IconPlus, IconSave } from "./Icons";
+import { IconEye, IconHome, IconLayout, IconPencil, IconPlus, IconSave, IconSearch } from "./Icons";
 
 const modKey = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘S" : "Ctrl+S";
 
@@ -41,6 +42,7 @@ export function Toolbar() {
   const openMenu = useUi((s) => s.openMenu);
   const menu = useUi((s) => s.menu);
   const closeMenu = useUi((s) => s.closeMenu);
+  const openQuick = useSearch((s) => s.openQuick);
   const plusRef = useRef<HTMLButtonElement>(null);
   const layRef = useRef<HTMLButtonElement>(null);
 
@@ -73,6 +75,7 @@ export function Toolbar() {
       </Btn>
       <Btn label={p ? `プロジェクトのフォルダへ戻る（${p.root}）` : "プロジェクトのフォルダへ戻る"} disabled={!p || atRoot} onClick={() => void goRoot()}><IconHome /></Btn>
       <span className="mx-1 h-4 w-px bg-line" />
+      <Btn label="ファイルを開く" disabled={!p} onClick={() => p && void openQuick(p.root)}><IconSearch /></Btn>
       <Btn refEl={layRef} label="表示するパネル" haspopup active={menu?.kind === "layout"} onClick={() => toggle("layout", layRef.current)}><IconLayout /></Btn>
     </div>
   );

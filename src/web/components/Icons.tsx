@@ -20,6 +20,9 @@ export const IconFolder = () => <Svg><path d="M2 4.5V12.5h12V6H7.5L6 4.5z" /></S
 export const IconGit = () => <Svg><circle cx="5" cy="3.8" r="1.6" /><circle cx="5" cy="12.2" r="1.6" /><circle cx="11" cy="6" r="1.6" /><path d="M5 5.4v5.2M11 7.6c0 2.2-2 3-5 3.6" /></Svg>;
 export const IconRename = () => <Svg><path d="M6 3h4M6 13h4M8 3v10" /></Svg>;
 export const IconCopy = () => <Svg><rect x="5.5" y="5.5" width="8" height="8" rx="1.5" /><path d="M10.5 5.5V3.5a1 1 0 0 0-1-1h-6a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2" /></Svg>;
+export const IconSearch = () => <Svg><circle cx="7" cy="7" r="4.2" /><path d="M10.2 10.2L14 14" /></Svg>;
+export const IconChevronUp = () => <Svg><path d="M4 10l4-4 4 4" /></Svg>;
+export const IconChevronDown = () => <Svg><path d="M4 6l4 4 4-4" /></Svg>;
 export const IconTrash = () => <Svg><path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.7 9h5.6l.7-9" /></Svg>;
 export const IconMore = () => (
   <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden className="size-4">

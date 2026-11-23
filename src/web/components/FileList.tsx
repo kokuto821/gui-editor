@@ -7,14 +7,15 @@ import { isDirty, useDocs } from "../stores/docs";
 import { useGit } from "../stores/git";
 import { bookmarksOf, useSettings } from "../stores/settings";
 import { useUi } from "../stores/ui";
-import { IconBookmark, IconFile, IconGit, IconMore, IconX } from "./Icons";
+import { IconBookmark, IconFile, IconGit, IconMore, IconSearch, IconX } from "./Icons";
 
-const extBadge = (name: string) => extOf(name).slice(0, 4) || "·";
+const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
+export const extBadge = (name: string) => extOf(name).slice(0, 4) || "·";
 const badge = (e: Pick<Entry, "kind" | "name">) => (e.kind === "dir" ? "▸" : extBadge(e.name));
 /** 拡張子は小さい文字で。記号（フォルダの ▸、拡張子なしの ·）は小さいと見えないので大きく */
-const badgeCls = (text: string) => clsx("w-9 flex-none font-mono text-mute uppercase", text === "▸" || text === "·" ? "text-[13px] leading-none" : "text-[9px]");
+export const badgeCls = (text: string) => clsx("w-9 flex-none font-mono text-mute uppercase", text === "▸" || text === "·" ? "text-[13px] leading-none" : "text-[9px]");
 
-/** 上の切替: ブックマーク / ファイル / Git の差分（バッジは未コミットの件数） */
+/** 上の切替: ブックマーク / ファイル / 検索 / Git の差分（バッジは未コミットの件数） */
 export function SideSwitch() {
   const p = useProject();
   const setSide = useApp((s) => s.setSide);
@@ -33,6 +34,7 @@ export function SideSwitch() {
     <div className="flex items-center gap-1 border-b border-line p-1.5" role="group" aria-label="一覧の表示">
       <B k="bm" label="ブックマーク" onClick={() => void setSide("bm")}><IconBookmark /></B>
       <B k="files" label="ファイル" onClick={() => void setSide("files")}><IconFile /></B>
+      <B k="search" label={`検索（${MOD}Shift+F）`} onClick={() => void setSide("search")}><IconSearch /></B>
       <B k="git" label={`Git の差分（v）${n ? `・未コミット ${n} 件` : ""}`} onClick={() => p.view === "diff" || void toggleView()} badgeN={n}><IconGit /></B>
     </div>
   );

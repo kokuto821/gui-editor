@@ -1,6 +1,7 @@
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { HighlightStyle, LanguageDescription, syntaxHighlighting } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
+import { search, searchKeymap } from "@codemirror/search";
 import { Annotation, Compartment, EditorState } from "@codemirror/state";
 import { drawSelection, EditorView, highlightActiveLine, keymap, lineNumbers } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
@@ -21,7 +22,42 @@ const theme = EditorView.theme({
   "&.cm-focused": { outline: "none" },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": { backgroundColor: "var(--color-soft)" },
   ".cm-cursor": { borderLeftColor: "var(--color-ink)" },
+  // 検索パネル（Ctrl+F）。置換は使わないので出さない
+  ".cm-panels": { backgroundColor: "var(--color-bg)", color: "var(--color-ink)" },
+  ".cm-panels.cm-panels-top": { borderBottom: "1px solid var(--color-line)" },
+  ".cm-panel.cm-search": { padding: "4px 8px", fontFamily: "var(--font-sans)", fontSize: "12.5px" },
+  ".cm-search br, .cm-search [name=replace], .cm-search [name=replaceAll]": { display: "none" },
+  ".cm-search label": { fontSize: "12px", color: "var(--color-mute)" },
+  ".cm-search input[type=checkbox]": { accentColor: "var(--color-ink)" },
+  ".cm-textfield": { fontSize: "12.5px", color: "var(--color-ink)", backgroundColor: "var(--color-bg)", border: "1px solid var(--color-line)", borderRadius: "4px", padding: "2px 6px", outline: "none" },
+  ".cm-textfield:focus": { borderColor: "var(--color-ink)" },
+  ".cm-button": { fontSize: "12px", color: "var(--color-ink)", backgroundImage: "none", backgroundColor: "var(--color-bg)", border: "1px solid var(--color-line)", borderRadius: "4px", padding: "1px 8px" },
+  ".cm-button:hover": { backgroundColor: "var(--color-soft)" },
+  ".cm-search [name=close]": { color: "var(--color-mute)", fontSize: "16px", top: "3px", right: "8px" },
+  ".cm-searchMatch": { backgroundColor: "color-mix(in srgb, var(--color-ink) 16%, transparent)", outline: "1px solid color-mix(in srgb, var(--color-ink) 30%, transparent)", borderRadius: "2px" },
+  ".cm-searchMatch.cm-searchMatch-selected, .cm-searchMatch-selected *": { backgroundColor: "var(--color-ink)", color: "var(--color-bg)" },
 });
+
+const phrases = EditorState.phrases.of({
+  Find: "検索",
+  next: "次へ",
+  previous: "前へ",
+  all: "すべて選択",
+  "match case": "大文字小文字を区別",
+  regexp: "正規表現",
+  "by word": "単語単位",
+  close: "閉じる",
+  "current match": "現在の一致",
+  "on line": "行",
+});
+
+/** line 行目（1 始まり）を真ん中へスクロールし、その行の q の一致を選ぶ（なければ行の先頭） */
+export function revealLine(v: EditorView, line: number, q: string): void {
+  const ln = v.state.doc.line(Math.max(1, Math.min(line, v.state.doc.lines)));
+  const at = ln.text.toLowerCase().indexOf(q.toLowerCase());
+  const from = ln.from + Math.max(0, at);
+  v.dispatch({ selection: { anchor: from, head: at < 0 ? from : from + q.length }, effects: EditorView.scrollIntoView(from, { y: "center" }) });
+}
 
 const highlight = HighlightStyle.define([
   { tag: [t.keyword, t.operatorKeyword, t.modifier, t.controlKeyword], fontWeight: "600" },
@@ -66,7 +102,9 @@ export function useCodeMirror(parent: RefObject<HTMLElement | null>, o: CodeMirr
           drawSelection(),
           highlightActiveLine(),
           syntaxHighlighting(highlight),
-          keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+          keymap.of([...defaultKeymap, ...searchKeymap, ...historyKeymap, indentWithTab]),
+          search({ top: true }),
+          phrases,
           theme,
           editableC.current.of([EditorView.editable.of(o.editable), EditorState.readOnly.of(!o.editable)]),
           langC.current.of([]),

@@ -1,6 +1,9 @@
+import { openSearchPanel } from "@codemirror/search";
+import { EditorView } from "@codemirror/view";
 import { currentOf, shownOf, useApp } from "./stores/app";
 import { useDocs } from "./stores/docs";
 import { useGit } from "./stores/git";
+import { useSearch } from "./stores/search";
 import { useUi } from "./stores/ui";
 
 const inField = (t: EventTarget | null) =>
@@ -9,18 +12,46 @@ const inField = (t: EventTarget | null) =>
 /** プレビューのスクロールする要素（CodeMirror のときは、その内側） */
 const scroller = () => document.querySelector<HTMLElement>("#preview-scroll .cm-scroller") ?? document.getElementById("preview-scroll");
 
+/** ページ内検索: コードは CodeMirror の検索パネル、MD の整形表示は自前の検索バー。HTML・図・画像はブラウザに任せる（奪わない） */
+function findInPreview(e: KeyboardEvent) {
+  const cm = document.querySelector<HTMLElement>("#preview-scroll .cm-editor");
+  const view = cm && EditorView.findFromDOM(cm);
+  if (view) {
+    e.preventDefault();
+    openSearchPanel(view);
+  } else if (document.querySelector("#preview-scroll article.md")) {
+    e.preventDefault();
+    const sel = String(window.getSelection() ?? "");
+    useSearch.getState().openFind(sel && !sel.includes("\n") ? sel : undefined);
+  }
+}
+
 /** キー操作は、React の外で1回だけ登録する。一覧とプレビューのうち、最後にクリックした方だけが受ける。 */
 export function installKeys(): void {
   window.addEventListener("keydown", (e) => {
     if (e.isComposing) return;
     const s = useApp.getState();
     const ui = useUi.getState();
-    if (ui.dialog || ui.menu) return; // ダイアログとメニューは、自分でキーを受ける
+    const se = useSearch.getState();
+    if (ui.dialog || ui.menu || se.quick) return; // ダイアログ、メニュー、ファイルを開く画面は、自分でキーを受ける
 
     // 保存: 入力中も受ける
     if ((e.ctrlKey || e.metaKey) && !e.altKey && e.code === "KeyS") {
       e.preventDefault();
       void s.saveCurrent();
+      return;
+    }
+
+    // ファイルを開く・検索・ページ内検索: 入力中も受ける（Ctrl+P はブラウザの印刷を奪う）
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && (e.code === "KeyP" || e.code === "KeyF")) {
+      const p = s.projects[s.active];
+      if (e.code === "KeyP" && !e.shiftKey) {
+        e.preventDefault();
+        if (p) void se.openQuick(p.root);
+      } else if (e.code === "KeyF" && e.shiftKey) {
+        e.preventDefault();
+        if (p) void s.setSide("search");
+      } else if (e.code === "KeyF" && !e.defaultPrevented) findInPreview(e); // CodeMirror の中では、CodeMirror が開く
       return;
     }
 
@@ -42,7 +73,8 @@ export function installKeys(): void {
 
     // テキスト入力中は、キーを奪わない（Esc だけ受ける）
     if (inField(e.target)) {
-      if (e.key === "Escape" && (e.target as HTMLElement).closest(".cm-editor")) {
+      // CodeMirror の検索パネルの Esc は、パネルを閉じるだけ（CodeMirror が受ける）
+      if (e.key === "Escape" && (e.target as HTMLElement).closest(".cm-editor") && !(e.target as HTMLElement).closest(".cm-panels")) {
         e.preventDefault();
         const p = s.projects[s.active];
         const c = shownOf(p, s.entries);
@@ -59,6 +91,9 @@ export function installKeys(): void {
     if (p.view === "diff") {
       return diffKeys(e, s);
     }
+
+    if (e.key === "/" && p.side === "search") return (e.preventDefault(), se.focusInput());
+    if (e.key === "Escape" && se.find) return (e.preventDefault(), se.closeFind());
 
     // プレビューがキーを受けているとき: スクロールだけ
     if (s.pane === "preview") {
@@ -87,6 +122,7 @@ export function installKeys(): void {
         return;
       }
       case "Enter": case "e": {
+        if (e.key === "Enter" && p.side === "search") return; // 結果は、選んだときに開いている
         const c = currentOf(p, s.entries);
         if (e.key === "Enter" && c?.isDir) return (e.preventDefault(), void s.enter());
         const f = shownOf(p, s.entries);
