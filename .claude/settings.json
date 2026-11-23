@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "deny": [
+      "Skill(matagi:branch)",
+      "Skill(matagi:coding)",
+      "Skill(matagi:coding-review)",
+      "Skill(matagi:commit)",
+      "Skill(matagi:create-ui-component)",
+      "Skill(matagi:hikitsugi)",
+      "Skill(matagi:issue-driven-workflow)",
+      "Skill(matagi:lint-sync)",
+      "Skill(matagi:openspec-workflow)",
+      "Skill(matagi:strict-mode)",
+      "Skill(matagi:tdd-workflow)",
+      "Skill(matagi:test-coding)",
+      "Skill(matagi:ui-review)",
+      "Agent(matagi:backend-code-reviewer)",
+      "Agent(matagi:backend-coder)",
+      "Agent(matagi:backend-test-reviewer)",
+      "Agent(matagi:backend-tester)",
+      "Agent(matagi:design-principles-reviewer)",
+      "Agent(matagi:frontend-code-reviewer)",
+      "Agent(matagi:frontend-coder)",
+      "Agent(matagi:frontend-test-reviewer)",
+      "Agent(matagi:frontend-tester)",
+      "Agent(matagi:README)",
+      "Agent(matagi:test-design-reviewer)",
+      "Agent(matagi:ui-designer)",
+      "Agent(matagi:ui-reviewer)"
+    ]
+  }
+}
