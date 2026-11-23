@@ -8,9 +8,9 @@ import { openBrowser } from "./open-browser.js";
 import { startServer } from "./server.js";
 
 const USAGE = `使い方:
-  cgui [フォルダ]     フォルダをプロジェクトとして開く（省略すると今のフォルダ）
+  cgui [フォルダ]     フォルダをプロジェクトとして開き、ブラウザも開く（省略すると今のフォルダ）
   cgui stop           動いているサーバーを止める
-  cgui --open ...     ブラウザも開く（既定では URL を表示するだけ）
+  cgui --no-open ...  ブラウザを開かず、URL を表示するだけにする
   cgui --port N ...   ポートを指定する（既定 ${DEFAULT_PORT}。環境変数 CGUI_PORT でも指定できる）
   cgui -h, --help     この説明`;
 
@@ -112,7 +112,7 @@ async function main(): Promise<void> {
   const { clients } = (await res.json()) as { clients: number };
   const url = `http://127.0.0.1:${lock.port}/?t=${lock.token}`;
   console.log(`cgui: ${target}\n${url}`);
-  // 既定ではブラウザを開かない。--open のときだけ開く（画面がすでに開いていれば、タブが増えるだけで済む）
+  // 画面がすでに開いていれば、そこにタブが増えるので開かない
   if (!open || clients > 0) return;
   if (!(await openBrowser(url))) console.log("ブラウザを開けませんでした。上の URL を開いてください。");
 }

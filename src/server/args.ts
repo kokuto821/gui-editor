@@ -16,7 +16,7 @@ export function parseArgs(args: string[], envPort = process.env.CGUI_PORT): CliA
   }
   return {
     port,
-    open: args.includes("--open"),
+    open: !args.includes("--no-open"),
     rest: args.filter((a, j) => !a.startsWith("-") && !(args[i] === "--port" && j === i + 1)),
   };
 }
