@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { type Lock, logPath, readLock, removeLock, writeLock } from "./lock.js";
+import { type Lock, loadToken, logPath, readLock, removeLock, writeLock } from "./lock.js";
 import { openBrowser } from "./open-browser.js";
 import { startServer } from "./server.js";
 
@@ -69,7 +69,8 @@ function parsePort(args: string[]): number {
 
 async function runDaemon(port: number): Promise<void> {
   let stopping = false;
-  const srv = await startServer({ port, onStop: () => void stop() });
+  const token = loadToken();
+  const srv = await startServer({ port, token, onStop: () => void stop() });
   async function stop() {
     if (stopping) return;
     stopping = true;
@@ -77,7 +78,7 @@ async function runDaemon(port: number): Promise<void> {
     await srv.close().catch(() => {});
     process.exit(0);
   }
-  writeLock({ pid: process.pid, port: srv.port, token: srv.token });
+  writeLock({ pid: process.pid, port: srv.port, token });
   process.on("SIGTERM", () => void stop());
   process.on("SIGINT", () => void stop());
   console.log(`cgui server started: pid=${process.pid} port=${srv.port}`);
