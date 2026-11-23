@@ -23,7 +23,8 @@ const theme = EditorView.theme({
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": { backgroundColor: "var(--color-soft)" },
   ".cm-cursor": { borderLeftColor: "var(--color-ink)" },
   // 検索パネル（Ctrl+F）。置換は使わないので出さない
-  ".cm-panels": { backgroundColor: "var(--color-bg)", color: "var(--color-ink)" },
+  // 既定の z-index（300）だと、クイックオープンやメニューより前に出てしまう
+  ".cm-panels": { backgroundColor: "var(--color-bg)", color: "var(--color-ink)", zIndex: "2" },
   ".cm-panels.cm-panels-top": { borderBottom: "1px solid var(--color-line)" },
   ".cm-panel.cm-search": { padding: "4px 8px", fontFamily: "var(--font-sans)", fontSize: "12.5px" },
   ".cm-search br, .cm-search [name=replace], .cm-search [name=replaceAll]": { display: "none" },
