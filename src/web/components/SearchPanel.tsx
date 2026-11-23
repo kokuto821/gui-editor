@@ -6,6 +6,7 @@ import { useApp, useProject } from "../stores/app";
 import { IDLE, useSearch, visibleHits } from "../stores/search";
 import { IconSearch, IconX } from "./Icons";
 import { badgeCls, extBadge } from "./FileList";
+import { OptionToggles, StepButtons } from "./SearchBar";
 
 /** 入力欄へのフォーカスの要求のうち、受け付けたもの（一覧を開き直しても、同じ要求で2回フォーカスしない） */
 let focused = 0;
@@ -48,6 +49,7 @@ export function SearchPanel() {
   const setPane = useApp((s) => s.setPane);
   const openHit = useApp((s) => s.openHit);
   const openInNewTab = useApp((s) => s.openInNewTab);
+  const move = useApp((s) => s.move);
   const input = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLDivElement>(null);
   const r = st.result;
@@ -76,9 +78,12 @@ export function SearchPanel() {
   else
     body = (
       <>
-        <div className="px-2 pt-0.5 pb-1.5 text-xs text-mute">
-          {r.hits.length}
-          {r.truncated ? "+" : ""} 件の結果（{groups.length} ファイル）
+        <div className="flex items-center gap-1 pr-0.5 pb-0.5 pl-2 text-xs text-mute">
+          <span className="min-w-0 flex-1 truncate">
+            {r.hits.length}
+            {r.truncated ? "+" : ""} 件の結果（{groups.length} ファイル）
+          </span>
+          <StepButtons onPrev={() => void move(-1)} onNext={() => void move(1)} keys={["↑", "↓"]} />
         </div>
         {groups.map((g) => {
           const col = !!st.collapsed[g.path];
@@ -127,7 +132,7 @@ export function SearchPanel() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col p-1.5" onMouseDown={() => setPane("list")}>
-      <div role="search" className="mx-0.5 mb-1.5 flex flex-none items-center gap-1.5 rounded-md border border-line bg-bg pr-1 pl-2 focus-within:border-ink">
+      <div role="search" className="mx-0.5 mb-1.5 flex flex-none items-center gap-1.5 rounded-md border border-line bg-bg pr-px pl-2 focus-within:border-ink">
         <span className="flex-none text-mute [&_svg]:size-[13px]"><IconSearch /></span>
         <input
           ref={input}
@@ -159,6 +164,7 @@ export function SearchPanel() {
         >
           <IconX />
         </button>
+        <OptionToggles />
       </div>
       <div ref={list} role="listbox" aria-label="検索結果" className="min-h-0 flex-1 overflow-y-auto">
         {body}

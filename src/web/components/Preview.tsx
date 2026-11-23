@@ -1,4 +1,6 @@
+import clsx from "clsx";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { buildMatcher } from "../../shared/match";
 import { backend } from "../backend";
 import { revealLine, useCodeMirror } from "../hooks/useCodeMirror";
 import { centerIn, markIn, unmark } from "../lib/mark";
@@ -8,7 +10,8 @@ import { baseOf, dirOf, extOf, fmtSize, resolvePath, tilde } from "../paths";
 import { isImagePath, shownOf, useApp, useProject } from "../stores/app";
 import { type Doc, useDocs } from "../stores/docs";
 import { type Reveal, useSearch } from "../stores/search";
-import { IconChevronDown, IconChevronUp, IconX } from "./Icons";
+import { IconX } from "./Icons";
+import { BarButton, OptionToggles, StepButtons } from "./SearchBar";
 import "../md.css";
 
 function Message({ title, meta }: { title: string; meta?: string }) {
@@ -49,7 +52,7 @@ function Markdown({ doc, root, reveal }: { doc: Doc; root: string; reveal: Revea
   useEffect(() => {
     const el = ref.current;
     if (!el || finding) return;
-    const marks = markIn(el, reveal?.q ?? "", "hit");
+    const marks = markIn(el, reveal?.re ?? null, "hit");
     const m = reveal && marks[Math.min(reveal.n, marks.length - 1)];
     if (m) (m.classList.add("cur"), centerIn(m));
   }, [html, reveal, finding]);
@@ -117,17 +120,9 @@ function CodeView({ doc, editable, reveal }: { doc: Doc; editable: boolean; reve
     onChange: (text) => useDocs.getState().edit(doc.path, text),
   });
   useEffect(() => {
-    if (view.current && reveal) revealLine(view.current, reveal.line, reveal.q);
+    if (view.current && reveal) revealLine(view.current, reveal.line, reveal.re);
   }, [view, reveal]);
   return <div ref={ref} className="h-full" />;
-}
-
-function FindBtn({ label, keyHint, onClick, children }: { label: string; keyHint: string; onClick: () => void; children: React.ReactNode }) {
-  return (
-    <button type="button" tabIndex={-1} title={`${label}（${keyHint}）`} aria-label={label} onMouseDown={(e) => e.preventDefault()} onClick={onClick} className="grid size-[22px] place-items-center rounded text-mute hover:bg-soft hover:text-ink [&_svg]:size-3">
-      {children}
-    </button>
-  );
 }
 
 /** MD の整形表示のページ内検索（Ctrl+F）。コードは CodeMirror の検索パネルを使う */
@@ -135,11 +130,13 @@ function FindBar({ text }: { text: string }) {
   const find = useSearch((s) => s.find);
   const setFindQuery = useSearch((s) => s.setFindQuery);
   const closeFind = useSearch((s) => s.closeFind);
+  const opts = useSearch((s) => s.opts);
   const input = useRef<HTMLInputElement>(null);
   const [i, setI] = useState(0);
   const [total, setTotal] = useState(0);
-  const shown = useRef(""); // 寄せたときの言葉と位置。ファイルが外で変わって印を付け直しただけなら、寄せ直さない
+  const shown = useRef(""); // 寄せたときの位置と、言葉・条件。ファイルが外で変わって印を付け直しただけなら、寄せ直さない
   const q = find?.q ?? "";
+  const m = useMemo(() => buildMatcher(q, opts), [q, opts]);
 
   useEffect(() => {
     input.current?.focus();
@@ -149,21 +146,22 @@ function FindBar({ text }: { text: string }) {
     const root = document.querySelector<HTMLElement>("#preview-scroll article.md");
     if (!root) return;
     unmark(root, "hit"); // 検索の結果からの印は、ページ内検索の間は消す
-    const marks = markIn(root, q, "fm");
+    const marks = markIn(root, m.ok ? m.re : null, "fm");
     setTotal(marks.length);
     const k = marks.length ? ((i % marks.length) + marks.length) % marks.length : 0;
-    const m = marks[k];
-    if (m) {
-      m.classList.add("cur");
-      if (shown.current !== `${k}:${q}`) centerIn(m);
+    const key = `${k}:${m.ok ? m.re : ""}`;
+    const cur = marks[k];
+    if (cur) {
+      cur.classList.add("cur");
+      if (shown.current !== key) centerIn(cur);
     }
-    shown.current = `${k}:${q}`;
+    shown.current = key;
     return () => unmark(root, "fm");
-  }, [q, i, text]);
+  }, [m, i, text]);
 
   const k = total ? ((i % total) + total) % total : 0;
   return (
-    <div role="search" className="absolute top-2 right-4 z-10 flex items-center gap-0.5 rounded-lg border border-line bg-bg py-[3px] pr-1 pl-2 shadow-[0_4px_14px_rgba(0,0,0,.12)] focus-within:border-ink">
+    <div role="search" className="absolute top-2 right-4 z-10 flex max-w-[calc(100%-2rem)] items-center gap-0.5 rounded-lg border border-line bg-bg py-[3px] pr-1 pl-2 shadow-[0_4px_14px_rgba(0,0,0,.12)] focus-within:border-ink">
       <input
         ref={input}
         value={q}
@@ -171,7 +169,7 @@ function FindBar({ text }: { text: string }) {
         aria-label="ページ内を検索"
         spellCheck={false}
         autoComplete="off"
-        className="h-6 w-[170px] bg-transparent text-[13px] outline-none"
+        className="h-6 w-[170px] min-w-0 bg-transparent text-[13px] outline-none"
         onChange={(e) => (setFindQuery(e.target.value), setI(0))}
         onKeyDown={(e) => {
           if (e.nativeEvent.isComposing) return;
@@ -179,10 +177,12 @@ function FindBar({ text }: { text: string }) {
           else if (e.key === "Escape") (e.preventDefault(), closeFind());
         }}
       />
-      <span className="min-w-[5.2em] text-center font-mono text-[11px] whitespace-nowrap text-mute">{!q ? "" : total ? `${k + 1} / ${total}` : "結果なし"}</span>
-      <FindBtn label="前へ" keyHint="Shift+Enter" onClick={() => setI(k - 1)}><IconChevronUp /></FindBtn>
-      <FindBtn label="次へ" keyHint="Enter" onClick={() => setI(k + 1)}><IconChevronDown /></FindBtn>
-      <FindBtn label="閉じる" keyHint="Esc" onClick={closeFind}><IconX /></FindBtn>
+      <span className={clsx("min-w-[5.2em] flex-none text-center font-mono text-[11px] whitespace-nowrap", m.ok ? "text-mute" : "text-del-ink")}>{!q ? "" : !m.ok ? "正規表現が正しくありません" : total ? `${k + 1} / ${total}` : "結果なし"}</span>
+      <StepButtons onPrev={() => setI(k - 1)} onNext={() => setI(k + 1)} />
+      <OptionToggles />
+      <BarButton label="閉じる（Esc）" onClick={closeFind}>
+        <IconX />
+      </BarButton>
     </div>
   );
 }

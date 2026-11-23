@@ -1,7 +1,8 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import { type SearchOpts, buildMatcher, matchesIn } from "../shared/match.js";
 import type { TextHit } from "../shared/protocol.js";
-import { MAX_TEXT_BYTES, SNIFF_BYTES, looksLikeText } from "./fs.js";
+import { FsError, MAX_TEXT_BYTES, SNIFF_BYTES, looksLikeText } from "./fs.js";
 import { git, toplevel } from "./git.js";
 
 const MAX_FILES = 20000;
@@ -63,8 +64,6 @@ export async function listFiles(root: string): Promise<{ files: string[]; trunca
   return { files: all.slice(0, MAX_FILES), truncated: all.length > MAX_FILES };
 }
 
-const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
 /** 一致行を、先頭の空白を詰め、長ければ一致の手前から切り詰めて返す。from/to は返す text の添字。 */
 function hitLine(line: string, from: number, len: number): { text: string; from: number; to: number } {
   if (from < line.length - line.trimStart().length) return { text: line, from, to: from + len }; // 一致が先頭の空白の中にある
@@ -78,10 +77,11 @@ function hitLine(line: string, from: number, len: number): { text: string; from:
   return { text, from: f, to: Math.min(f + len, text.length) };
 }
 
-export async function searchText(root: string, query: string): Promise<{ hits: TextHit[]; truncated: boolean }> {
+export async function searchText(root: string, query: string, opts: SearchOpts): Promise<{ hits: TextHit[]; truncated: boolean }> {
   if (!query.trim()) return { hits: [], truncated: false };
-  // 利用者の入力は正規表現として扱わない。添字を元の行に合わせるため、toLowerCase ではなく i フラグで比べる
-  const re = new RegExp(escapeRe(query), "i");
+  const m = buildMatcher(query, opts);
+  if (!m.ok) throw new FsError("bad_request", "正規表現が正しくありません");
+  const re = m.re;
   const listed = await listFiles(root);
   const hits: TextHit[] = [];
   // 上限を1件超えるまで集めて、打ち切ったかどうかを知る
@@ -96,14 +96,15 @@ export async function searchText(root: string, query: string): Promise<{ hits: T
       const buf = await fs.readFile(abs).catch(() => null);
       if (!buf || !looksLikeText(buf.subarray(0, SNIFF_BYTES))) return;
       const content = buf.toString("utf8");
-      if (!re.test(content)) return;
+      // 正規表現は ^ や後読みが、行ごとと全体とで結果が変わるので、全体での下見はしない
+      if (!opts.regexp && content.search(re) < 0) return;
       const lines = content.split("\n");
       for (let i = 0; i < lines.length; i++) {
         const line = lines[i]!.replace(/\r$/, "");
-        const m = re.exec(line);
-        if (!m) continue;
+        const hit = matchesIn(re, line).next();
+        if (hit.done) continue;
         if (full()) return;
-        hits.push({ path: rel, line: i + 1, ...hitLine(line, m.index, m[0].length) });
+        hits.push({ path: rel, line: i + 1, ...hitLine(line, hit.value.from, hit.value.to - hit.value.from) });
       }
     },
     full,

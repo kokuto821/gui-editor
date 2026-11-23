@@ -6,6 +6,7 @@ import { Annotation, Compartment, EditorState } from "@codemirror/state";
 import { drawSelection, EditorView, highlightActiveLine, keymap, lineNumbers } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 import { type RefObject, useEffect, useRef } from "react";
+import { matchesIn } from "../../shared/match";
 import { createFindPanel } from "./findPanel";
 
 /** 外から差し替えた変更（編集としては数えない）の目印 */
@@ -46,12 +47,12 @@ const phrases = EditorState.phrases.of({
   "on line": "行",
 });
 
-/** line 行目（1 始まり）を真ん中へスクロールし、その行の q の一致を選ぶ（なければ行の先頭） */
-export function revealLine(v: EditorView, line: number, q: string): void {
+/** line 行目（1 始まり）を真ん中へスクロールし、その行の re の最初の一致を選ぶ（なければ行の先頭） */
+export function revealLine(v: EditorView, line: number, re: RegExp | null): void {
   const ln = v.state.doc.line(Math.max(1, Math.min(line, v.state.doc.lines)));
-  const at = ln.text.toLowerCase().indexOf(q.toLowerCase());
-  const from = ln.from + Math.max(0, at);
-  v.dispatch({ selection: { anchor: from, head: at < 0 ? from : from + q.length }, effects: EditorView.scrollIntoView(from, { y: "center" }) });
+  const m = re ? matchesIn(re, ln.text).next() : null;
+  const hit = m && !m.done ? m.value : { from: 0, to: 0 };
+  v.dispatch({ selection: { anchor: ln.from + hit.from, head: ln.from + hit.to }, effects: EditorView.scrollIntoView(ln.from + hit.from, { y: "center" }) });
 }
 
 const highlight = HighlightStyle.define([

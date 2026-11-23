@@ -1,5 +1,7 @@
 // 画面とサーバーで共通の、要求・応答・通知の型。
 
+import type { SearchOpts } from "./match.js";
+
 export type EntryKind = "dir" | "text" | "image" | "binary";
 
 export interface Entry {
@@ -64,8 +66,8 @@ export interface MethodMap {
   "fs.delete": { params: { path: string }; result: Record<string, never> };
   /** プロジェクト内のファイルの相対パス（.gitignore の対象と .git は含めない）。ファイル名の絞り込みは画面で行う */
   "search.files": { params: { root: string }; result: { files: string[]; truncated: boolean } };
-  /** 本文の検索（大文字小文字を区別しない部分一致）。.gitignore の対象、バイナリ、大きいファイルは見ない */
-  "search.text": { params: { root: string; query: string }; result: { hits: TextHit[]; truncated: boolean } };
+  /** 本文の検索（opts がなければ、大文字小文字を区別しない部分一致）。.gitignore の対象、バイナリ、大きいファイルは見ない。正しくない正規表現は "bad_request" で断る */
+  "search.text": { params: { root: string; query: string; opts?: SearchOpts }; result: { hits: TextHit[]; truncated: boolean } };
   "git.status": { params: { root: string }; result: { isRepo: boolean; files: GitFile[] } };
   "git.log": { params: { root: string }; result: { commits: Commit[] } };
   "git.diff": { params: { root: string; path?: string; hash?: string }; result: { patch: string; truncated: boolean } };

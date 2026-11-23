@@ -244,7 +244,9 @@ export async function startServer(opts: { port: number; onStop?: () => void }): 
             break;
           case "search.text": {
             const root = await gitRoot(params.root);
-            result = await search.searchText(root, typeof params.query === "string" ? params.query : "");
+            const o = (params.opts ?? {}) as Record<string, unknown>;
+            const opts = { caseSensitive: o.caseSensitive === true, wholeWord: o.wholeWord === true, regexp: o.regexp === true };
+            result = await search.searchText(root, typeof params.query === "string" ? params.query : "", opts);
             break;
           }
           case "settings.get":

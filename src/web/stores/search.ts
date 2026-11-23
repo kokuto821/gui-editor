@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { DEFAULT_OPTS, type SearchOpts, buildMatcher } from "../../shared/match";
 import type { TextHit } from "../../shared/protocol";
 import { backend } from "../backend";
 import { BackendError } from "../backend/types";
@@ -11,16 +12,17 @@ export interface Reveal {
   /** 絶対パス */
   path: string;
   line: number;
-  q: string;
+  /** 一致に印を付けるための、検索したときの言葉と条件 */
+  re: RegExp | null;
   /** そのファイルの中で何番目の結果か（MD の整形表示では、ソースの行と対応しないので、この順番で寄せる） */
   n: number;
 }
 
-/** 本文検索の結果。q は、その結果を出したときの言葉（入力欄の中身とずれることがある） */
+/** 本文検索の結果。q と opts は、その結果を出したときの言葉と条件（入力欄やボタンの今の状態とずれることがある） */
 export type TextResult =
   | { kind: "idle" }
   | { kind: "pending"; q: string }
-  | { kind: "done"; q: string; hits: TextHit[]; truncated: boolean; sel: Reveal | null }
+  | { kind: "done"; q: string; opts: SearchOpts; hits: TextHit[]; truncated: boolean; sel: Reveal | null }
   | { kind: "error"; q: string; message: string };
 
 export interface TextSearch {
@@ -43,6 +45,8 @@ interface SearchState {
   quick: QuickOpen | null;
   /** MD の整形表示のページ内検索。focus は、増えるたびに入力欄へフォーカスする */
   find: { q: string; focus: number } | null;
+  /** 大文字小文字・単語単位・正規表現。本文検索・クイックオープン・ページ内検索で共通 */
+  opts: SearchOpts;
 
   setQuery(root: string, q: string): void;
   toggleCollapsed(root: string, path: string): void;
@@ -53,6 +57,7 @@ interface SearchState {
   openFind(q?: string): void;
   setFindQuery(q: string): void;
   closeFind(): void;
+  setOpts(opts: SearchOpts): void;
 }
 
 export const IDLE: TextSearch = { q: "", result: { kind: "idle" }, collapsed: {} };
@@ -78,9 +83,10 @@ export const useSearch = create<SearchState>()((set, get) => {
   async function run(root: string, q: string) {
     const my = (seqs.get(root) ?? 0) + 1;
     seqs.set(root, my);
+    const opts = get().opts;
     try {
-      const { hits, truncated } = await backend.call("search.text", { root, query: q });
-      if (seqs.get(root) === my) patchText(root, (t) => ({ ...t, result: { kind: "done", q, hits, truncated, sel: null } }));
+      const { hits, truncated } = await backend.call("search.text", { root, query: q, opts });
+      if (seqs.get(root) === my) patchText(root, (t) => ({ ...t, result: { kind: "done", q, opts, hits, truncated, sel: null } }));
     } catch (e) {
       if (seqs.get(root) === my) patchText(root, (t) => ({ ...t, result: { kind: "error", q, message: e instanceof BackendError ? e.message : "検索できませんでした" } }));
     }
@@ -91,6 +97,7 @@ export const useSearch = create<SearchState>()((set, get) => {
     focusText: 0,
     quick: null,
     find: null,
+    opts: DEFAULT_OPTS,
 
     setQuery(root, q) {
       clearTimeout(timers.get(root));
@@ -118,7 +125,8 @@ export const useSearch = create<SearchState>()((set, get) => {
       if (r?.kind !== "done" || !hit) return null;
       let n = 0;
       while (r.hits[i - n - 1]?.path === hit.path) n++;
-      const sel: Reveal = { i, path: joinPath(root, hit.path), line: hit.line, q: r.q, n };
+      const m = buildMatcher(r.q, r.opts);
+      const sel: Reveal = { i, path: joinPath(root, hit.path), line: hit.line, re: m.ok ? m.re : null, n };
       patchText(root, (t) => ({ ...t, result: { ...r, sel } }));
       return sel;
     },
@@ -156,6 +164,12 @@ export const useSearch = create<SearchState>()((set, get) => {
       if (!f) return;
       lastFind = f.q;
       set({ find: null });
+    },
+
+    setOpts(opts) {
+      set({ opts });
+      // 条件が替わったら、言葉の入っている本文検索をやり直す
+      for (const [root, t] of Object.entries(get().text)) if (t.q.trim()) get().setQuery(root, t.q);
     },
   };
 });

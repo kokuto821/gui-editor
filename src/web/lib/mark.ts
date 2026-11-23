@@ -1,15 +1,16 @@
 // プレビュー（MD の整形表示）の中の一致に <mark> を付ける。markdown-it の HTML を直接いじる
 
+import { matchesIn } from "../../shared/match";
+
 export function unmark(root: HTMLElement, cls: string): void {
   root.querySelectorAll(`mark.${cls}`).forEach((m) => m.replaceWith(document.createTextNode(m.textContent ?? "")));
   root.normalize();
 }
 
-/** q に一致するところ（大文字小文字は区別しない）を <mark class={cls}> で包み、上から順に返す。図（Mermaid）の中は見ない */
-export function markIn(root: HTMLElement, q: string, cls: string): HTMLElement[] {
+/** re に一致するところを <mark class={cls}> で包み、上から順に返す。re が null なら印を消すだけ。図（Mermaid）の中は見ない */
+export function markIn(root: HTMLElement, re: RegExp | null, cls: string): HTMLElement[] {
   unmark(root, cls);
-  if (!q) return [];
-  const ql = q.toLowerCase();
+  if (!re) return [];
   const nodes: Text[] = [];
   const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
     acceptNode: (n) => (n.parentElement?.closest(`mark.${cls}, .mmd, svg, script, style`) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
@@ -18,21 +19,18 @@ export function markIn(root: HTMLElement, q: string, cls: string): HTMLElement[]
   const out: HTMLElement[] = [];
   for (const node of nodes) {
     const t = node.nodeValue ?? "";
-    const lo = t.toLowerCase();
-    let i = lo.indexOf(ql);
-    if (i < 0) continue;
     const frag = document.createDocumentFragment();
     let last = 0;
-    while (i >= 0) {
-      if (i > last) frag.append(t.slice(last, i));
+    for (const { from, to } of matchesIn(re, t)) {
+      if (from > last) frag.append(t.slice(last, from));
       const m = document.createElement("mark");
       m.className = cls;
-      m.textContent = t.slice(i, i + q.length);
+      m.textContent = t.slice(from, to);
       frag.append(m);
       out.push(m);
-      last = i + q.length;
-      i = lo.indexOf(ql, last);
+      last = to;
     }
+    if (!last) continue;
     if (last < t.length) frag.append(t.slice(last));
     node.replaceWith(frag);
   }
