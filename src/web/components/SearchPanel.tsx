@@ -91,7 +91,7 @@ export function SearchPanel() {
           return (
             <div key={g.path}>
               <button type="button" tabIndex={-1} title={g.path} aria-expanded={!col} onClick={() => toggleCollapsed(root, g.path)} className="mt-0.5 flex min-h-[26px] w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left hover:bg-code">
-                <span className="w-2.5 flex-none text-center text-[9px] text-mute">{col ? "▸" : "▾"}</span>
+                <span className="w-4 flex-none text-center font-mono text-[13px] leading-none text-mute">{col ? "▸" : "▾"}</span>
                 <span className={badgeCls(extBadge(g.path))}>{extBadge(g.path)}</span>
                 <span className="max-w-[60%] flex-none truncate">{baseOf(g.path)}</span>
                 <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-mute">{dir}</span>
