@@ -1,6 +1,6 @@
 import clsx from "clsx";
 import type { ReactNode } from "react";
-import type { SearchOpts } from "../../shared/match";
+import { FLAGS } from "../hooks/findPanel";
 import { useSearch } from "../stores/search";
 import { IconChevronDown, IconChevronUp } from "./Icons";
 
@@ -23,11 +23,8 @@ export function BarButton({ label, pressed, onClick, children }: { label: string
   );
 }
 
-const FLAGS: { key: keyof SearchOpts; glyph: string; label: string }[] = [
-  { key: "caseSensitive", glyph: "Aa", label: "大文字小文字を区別" },
-  { key: "wholeWord", glyph: "ab", label: "単語単位" },
-  { key: "regexp", glyph: ".*", label: "正規表現" },
-];
+/** 検索の一覧（本文検索・クイックオープン）で、一致した文字の印 */
+export const HIT_MARK = "bg-transparent font-bold text-ink underline decoration-[1.5px] underline-offset-2";
 
 /** 大文字小文字・単語単位・正規表現の切替。本文検索・クイックオープン・ページ内検索で同じ設定を使う */
 export function OptionToggles() {

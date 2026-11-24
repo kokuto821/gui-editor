@@ -1,11 +1,12 @@
 import clsx from "clsx";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { buildMatcher, matchesIn } from "../../shared/match";
-import { isInside } from "../paths";
+import { isInside, joinPath } from "../paths";
 import { useApp, useProject } from "../stores/app";
 import { useSearch } from "../stores/search";
-import { badgeCls, extBadge } from "./FileList";
-import { OptionToggles, StepButtons } from "./SearchBar";
+import { ExtBadge } from "./Badge";
+import { HIT_MARK, OptionToggles, StepButtons } from "./SearchBar";
+import { Kbd } from "./StatusBar";
 
 /** ql の文字が、s の from 以降にこの順で現れる位置（現れなければ null） */
 function subseq(ql: string, s: string, from: number): number[] | null {
@@ -55,7 +56,7 @@ function Marked({ text, off, idx }: { text: string; off: number; idx: number[] }
     <>
       {text.split("").map((ch, i) =>
         on.has(i) ? (
-          <mark key={i} className="bg-transparent font-bold text-ink underline decoration-[1.5px] underline-offset-2">
+          <mark key={i} className={HIT_MARK}>
             {ch}
           </mark>
         ) : (
@@ -65,6 +66,10 @@ function Marked({ text, off, idx }: { text: string; off: number; idx: number[] }
     </>
   );
 }
+
+const Note = ({ children, error }: { children: React.ReactNode; error?: boolean }) => (
+  <div className={clsx("px-2.5 py-3.5 text-center text-[13px]", error ? "text-del-ink" : "text-mute")}>{children}</div>
+);
 
 export function QuickOpen() {
   const p = useProject();
@@ -101,7 +106,7 @@ export function QuickOpen() {
 
   const at = Math.max(0, Math.min(sel, items.length - 1));
   const hasOpen = !q.trim() && items.some((x) => x.on);
-  const openCount = !q.trim() && hasOpen ? items.filter((x) => x.on).length : 0;
+  const openCount = hasOpen ? items.filter((x) => x.on).length : 0;
 
   const opened = useRef(false);
   useEffect(() => {
@@ -127,7 +132,7 @@ export function QuickOpen() {
     const it = items[i];
     if (!it) return;
     close();
-    void navigateTo(root === "/" ? `/${it.rel}` : `${root}/${it.rel}`);
+    void navigateTo(joinPath(root, it.rel));
   };
 
   return (
@@ -170,9 +175,9 @@ export function QuickOpen() {
           <OptionToggles />
         </div>
         <div ref={list} role="listbox" aria-label="ファイル" className="max-h-[min(50vh,360px)] overflow-y-auto p-1">
-          {quick.kind === "loading" && <div className="px-2.5 py-3.5 text-center text-[13px] text-mute">読み込んでいます…</div>}
-          {quick.kind === "error" && <div className="px-2.5 py-3.5 text-center text-[13px] text-del-ink">{quick.message}</div>}
-          {quick.kind === "ready" && matcher?.ok === false && <div className="px-2.5 py-3.5 text-center text-[13px] text-del-ink">正規表現が正しくありません</div>}
+          {quick.kind === "loading" && <Note>読み込んでいます…</Note>}
+          {quick.kind === "error" && <Note error>{quick.message}</Note>}
+          {quick.kind === "ready" && matcher?.ok === false && <Note error>正規表現が正しくありません</Note>}
           {quick.kind === "ready" &&
             matcher?.ok !== false &&
             (items.length ? (
@@ -182,8 +187,8 @@ export function QuickOpen() {
                 const dir = it.rel.slice(0, Math.max(0, bs - 1));
                 return (
                   <div key={it.rel}>
-                    {!q.trim() && i === 0 && hasOpen && <div className="px-2.5 pt-1 pb-0.5 text-[11px] font-semibold text-mute">開いているファイル</div>}
-                    {!q.trim() && hasOpen && !it.on && i === openCount && <div className="px-2.5 pt-1 pb-0.5 text-[11px] font-semibold text-mute">ほかのファイル</div>}
+                    {i === 0 && hasOpen && <div className="px-2.5 pt-1 pb-0.5 text-[11px] font-semibold text-mute">開いているファイル</div>}
+                    {hasOpen && !it.on && i === openCount && <div className="px-2.5 pt-1 pb-0.5 text-[11px] font-semibold text-mute">ほかのファイル</div>}
                     <button
                       type="button"
                       tabIndex={-1}
@@ -195,7 +200,7 @@ export function QuickOpen() {
                       onMouseEnter={() => setSel(i)}
                       className={clsx("flex min-h-7 w-full items-center gap-2 rounded-md px-2.5 py-[3px] text-left", i === at ? "bg-soft/60" : "hover:bg-code")}
                     >
-                      <span className={clsx(badgeCls(extBadge(name)), "w-[22px]")}>{extBadge(name)}</span>
+                      <ExtBadge name={name} className="w-[22px]" />
                       <span className="max-w-[60%] flex-none truncate">
                         <Marked text={name} off={bs} idx={it.idx} />
                       </span>
@@ -208,18 +213,18 @@ export function QuickOpen() {
                 );
               })
             ) : (
-              <div className="px-2.5 py-3.5 text-center text-[13px] text-mute">一致するファイルがありません</div>
+              <Note>一致するファイルがありません</Note>
             ))}
         </div>
         <div className="flex gap-3 overflow-hidden border-t border-line px-3 py-[5px] text-[11px] whitespace-nowrap text-mute">
           <span>
-            <kbd className="rounded border border-line bg-code px-1 font-mono text-[10px] text-ink">↑↓</kbd> 選択
+            <Kbd>↑↓</Kbd> 選択
           </span>
           <span>
-            <kbd className="rounded border border-line bg-code px-1 font-mono text-[10px] text-ink">Enter</kbd> 開く
+            <Kbd>Enter</Kbd> 開く
           </span>
           <span>
-            <kbd className="rounded border border-line bg-code px-1 font-mono text-[10px] text-ink">Esc</kbd> 閉じる
+            <Kbd>Esc</Kbd> 閉じる
           </span>
         </div>
       </div>

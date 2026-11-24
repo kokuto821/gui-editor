@@ -1,10 +1,9 @@
 import { UP, currentOf, shownOf, useApp, useProject } from "../stores/app";
 import { baseOf, dirOf, isInside, tilde } from "../paths";
 import { useDocs } from "../stores/docs";
+import { MOD } from "../keys";
 
-const Kbd = ({ children }: { children: React.ReactNode }) => <kbd className="rounded border border-line bg-code px-1 font-mono text-[10px] text-ink">{children}</kbd>;
-const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
-const SAVE = `${MOD}S`;
+export const Kbd = ({ children }: { children: React.ReactNode }) => <kbd className="rounded border border-line bg-code px-1 font-mono text-[10px] text-ink">{children}</kbd>;
 
 export function StatusBar() {
   const p = useProject();
@@ -43,7 +42,7 @@ export function StatusBar() {
         {p?.view === "diff" ? (
           <><Kbd>↑↓</Kbd> 選択 <Kbd>←→</Kbd> パネル <Kbd>d u</Kbd> スクロール <Kbd>v</Kbd> ファイル</>
         ) : editing ? (
-          <><Kbd>{SAVE}</Kbd> 保存 <Kbd>Esc</Kbd> 閲覧に戻る</>
+          <><Kbd>{MOD}S</Kbd> 保存 <Kbd>Esc</Kbd> 閲覧に戻る</>
         ) : p?.side === "search" ? (
           <><Kbd>↑↓</Kbd> 結果 <Kbd>/</Kbd> 入力へ <Kbd>{MOD}F</Kbd> ページ内検索 <Kbd>{MOD}P</Kbd> ファイルを開く</>
         ) : (

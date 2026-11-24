@@ -6,6 +6,9 @@ import { useGit } from "./stores/git";
 import { useSearch } from "./stores/search";
 import { useUi } from "./stores/ui";
 
+/** ショートカットの表示に使う、修飾キー */
+export const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
+
 const inField = (t: EventTarget | null) =>
   t instanceof HTMLElement && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
 

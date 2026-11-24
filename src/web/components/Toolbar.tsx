@@ -1,12 +1,11 @@
 import clsx from "clsx";
 import { useRef } from "react";
+import { MOD } from "../keys";
 import { shownOf, useApp, useProject } from "../stores/app";
 import { isDirty, useDocs } from "../stores/docs";
 import { useSearch } from "../stores/search";
 import { useUi } from "../stores/ui";
 import { IconEye, IconHome, IconLayout, IconPencil, IconPlus, IconSave, IconSearch } from "./Icons";
-
-const modKey = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘S" : "Ctrl+S";
 
 function Btn({ label, onClick, disabled, active, children, refEl, haspopup }: {
   label: string; onClick: () => void; disabled?: boolean; active?: boolean; children: React.ReactNode;
@@ -67,7 +66,7 @@ export function Toolbar() {
         {editing ? <IconPencil /> : <IconEye />}
       </Btn>
       <Btn
-        label={isDirty(doc) ? `保存（${modKey}）` : "保存（未保存の変更はありません）"}
+        label={isDirty(doc) ? `保存（${MOD}S）` : "保存（未保存の変更はありません）"}
         disabled={!isDirty(doc)}
         onClick={() => void saveCurrent()}
       >

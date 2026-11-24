@@ -4,19 +4,18 @@ import type { TextHit } from "../../shared/protocol";
 import { baseOf, dirOf, joinPath } from "../paths";
 import { useApp, useProject } from "../stores/app";
 import { IDLE, useSearch, visibleHits } from "../stores/search";
+import { Chevron, ExtBadge } from "./Badge";
 import { IconSearch, IconX } from "./Icons";
-import { badgeCls, extBadge } from "./FileList";
-import { OptionToggles, StepButtons } from "./SearchBar";
+import { HIT_MARK, OptionToggles, StepButtons } from "./SearchBar";
 
 /** 入力欄へのフォーカスの要求のうち、受け付けたもの（一覧を開き直しても、同じ要求で2回フォーカスしない） */
 let focused = 0;
 
-/** 一致したところを太字と下線で */
 function Hl({ text, from, to }: { text: string; from: number; to: number }) {
   return (
     <>
       {text.slice(0, from)}
-      <mark className="bg-transparent font-bold text-ink underline decoration-[1.5px] underline-offset-2">{text.slice(from, to)}</mark>
+      <mark className={HIT_MARK}>{text.slice(from, to)}</mark>
       {text.slice(to)}
     </>
   );
@@ -91,8 +90,8 @@ export function SearchPanel() {
           return (
             <div key={g.path}>
               <button type="button" tabIndex={-1} title={g.path} aria-expanded={!col} onClick={() => toggleCollapsed(root, g.path)} className="mt-0.5 flex min-h-[26px] w-full items-center gap-1.5 rounded-md px-1.5 py-0.5 text-left hover:bg-code">
-                <span className="w-4 flex-none text-center font-mono text-[13px] leading-none text-mute">{col ? "▸" : "▾"}</span>
-                <span className={badgeCls(extBadge(g.path))}>{extBadge(g.path)}</span>
+                <Chevron open={!col} className="w-4 text-center" />
+                <ExtBadge name={g.path} />
                 <span className="max-w-[60%] flex-none truncate">{baseOf(g.path)}</span>
                 <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-mute">{dir}</span>
                 <span className="ml-auto min-w-4 flex-none rounded-lg bg-soft px-1 text-center font-mono text-[10px] leading-[15px] font-medium text-ink">{g.hits.length}</span>

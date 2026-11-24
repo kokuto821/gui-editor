@@ -1,19 +1,17 @@
 import clsx from "clsx";
 import { useEffect, useRef } from "react";
 import type { Entry } from "../../shared/protocol";
-import { baseOf, dirOf, extOf, tilde } from "../paths";
+import { MOD } from "../keys";
+import { baseOf, dirOf, tilde } from "../paths";
 import { UP, currentOf, useApp, useProject } from "../stores/app";
 import { isDirty, useDocs } from "../stores/docs";
 import { useGit } from "../stores/git";
 import { bookmarksOf, useSettings } from "../stores/settings";
 import { useUi } from "../stores/ui";
+import { Chevron, ExtBadge } from "./Badge";
 import { IconBookmark, IconFile, IconGit, IconMore, IconSearch, IconX } from "./Icons";
 
-const MOD = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘" : "Ctrl+";
-export const extBadge = (name: string) => extOf(name).slice(0, 4) || "·";
-const badge = (e: Pick<Entry, "kind" | "name">) => (e.kind === "dir" ? "▸" : extBadge(e.name));
-/** 拡張子は小さい文字で。記号（フォルダの ▸、拡張子なしの ·）は小さいと見えないので大きく */
-export const badgeCls = (text: string) => clsx("w-9 flex-none font-mono text-mute uppercase", text === "▸" || text === "·" ? "text-[13px] leading-none" : "text-[9px]");
+const Badge = ({ e }: { e: Entry }) => (e.kind === "dir" ? <Chevron className="w-9" /> : <ExtBadge name={e.name} />);
 
 /** 上の切替: ブックマーク / ファイル / 検索 / Git の差分（バッジは未コミットの件数） */
 export function SideSwitch() {
@@ -151,7 +149,7 @@ export function FileList() {
         if (renaming === full)
           return (
             <div key={e.name} className="flex items-center gap-2.5 rounded-md bg-soft px-2.5 py-0.5">
-              <span className={badgeCls(badge(e))}>{badge(e)}</span>
+              <Badge e={e} />
               <RenameInput entry={e} path={full} />
             </div>
           );
@@ -169,7 +167,7 @@ export function FileList() {
               }}
               onDoubleClick={() => e.kind !== "dir" && Date.now() - enteredAt.current >= 500 && void openInNewTab(full)}
             >
-              <span className={badgeCls(badge(e))}>{badge(e)}</span>
+              <Badge e={e} />
               <span className={clsx("truncate", e.kind === "binary" && "text-mute")}>
                 {e.name}
                 {e.kind === "dir" ? "/" : ""}
@@ -205,7 +203,7 @@ export function BookmarkList() {
         return (
           <div key={path} className={clsx("group flex items-center rounded-md", path === cur && "bg-soft")} role="option" aria-selected={path === cur}>
             <button type="button" tabIndex={-1} title={path} className="flex min-w-0 flex-1 items-center gap-2.5 px-2.5 py-0.5 text-left" onClick={() => void selectBm(path)} onDoubleClick={() => void openInNewTab(path)}>
-              <span className={badgeCls(extBadge(path))}>{extBadge(path)}</span>
+              <ExtBadge name={path} />
               <span className="truncate">{baseOf(path)}</span>
               {dir && <span className="truncate text-xs text-mute">{dir}/</span>}
               {isDirty(docs[path]) && <span className="ml-auto flex-none text-[8px]" title="未保存">●</span>}

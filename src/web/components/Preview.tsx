@@ -125,6 +125,9 @@ function CodeView({ doc, editable, reveal }: { doc: Doc; editable: boolean; reve
   return <div ref={ref} className="h-full" />;
 }
 
+/** 前へ・次へで、端から反対の端へ回る */
+const cycle = (i: number, n: number) => (n ? ((i % n) + n) % n : 0);
+
 /** MD の整形表示のページ内検索（Ctrl+F）。コードは CodeMirror の検索パネルを使う */
 function FindBar({ text }: { text: string }) {
   const find = useSearch((s) => s.find);
@@ -148,7 +151,7 @@ function FindBar({ text }: { text: string }) {
     unmark(root, "hit"); // 検索の結果からの印は、ページ内検索の間は消す
     const marks = markIn(root, m.ok ? m.re : null, "fm");
     setTotal(marks.length);
-    const k = marks.length ? ((i % marks.length) + marks.length) % marks.length : 0;
+    const k = cycle(i, marks.length);
     const key = `${k}:${m.ok ? m.re : ""}`;
     const cur = marks[k];
     if (cur) {
@@ -159,7 +162,7 @@ function FindBar({ text }: { text: string }) {
     return () => unmark(root, "fm");
   }, [m, i, text]);
 
-  const k = total ? ((i % total) + total) % total : 0;
+  const k = cycle(i, total);
   return (
     <div role="search" className="absolute top-2 right-4 z-10 flex max-w-[calc(100%-2rem)] items-center gap-0.5 rounded-lg border border-line bg-bg py-[3px] pr-1 pl-2 shadow-[0_4px_14px_rgba(0,0,0,.12)] focus-within:border-ink">
       <input
@@ -201,12 +204,12 @@ export function Preview() {
     return r?.kind === "done" ? r.sel : null;
   });
   const reveal = sel && sel.path === c?.path ? sel : null;
-  const mdPath = !!p && !!c && (p.mode[c.path] ?? "view") === "view" && ["md", "markdown"].includes(extOf(c.name));
+  const mdView = !!p && !!c && (p.mode[c.path] ?? "view") === "view" && ["md", "markdown"].includes(extOf(c.name));
   const find = useSearch((s) => !!s.find);
   // ページ内検索のバーは MD の整形表示だけ。ほかのファイルへ移ったら閉じる
   useEffect(() => {
-    if (!mdPath) useSearch.getState().closeFind();
-  }, [mdPath]);
+    if (!mdView) useSearch.getState().closeFind();
+  }, [mdView]);
 
   let body: React.ReactNode;
   let scrolls = true; // CodeMirror は、自分でスクロールする
@@ -241,7 +244,7 @@ export function Preview() {
       <div id="preview-scroll" className={scrolls ? "min-h-0 flex-1 overflow-auto" : "min-h-0 flex-1 overflow-hidden"}>
         {body}
       </div>
-      {find && mdPath && doc && <FindBar text={doc.text} />}
+      {find && mdView && doc && <FindBar text={doc.text} />}
     </div>
   );
 }

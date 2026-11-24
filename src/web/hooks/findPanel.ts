@@ -1,5 +1,6 @@
 import { SearchQuery, closeSearchPanel, findNext, findPrevious, getSearchQuery, selectMatches, setSearchQuery } from "@codemirror/search";
 import { type EditorView, type Panel, type ViewUpdate, runScopeHandlers } from "@codemirror/view";
+import type { SearchOpts } from "../../shared/match";
 
 // 画面のほかの検索（MD の整形表示）と同じ線のアイコン
 const icon = (d: string) => `<svg viewBox="0 0 16 16" aria-hidden="true"><path d="${d}"/></svg>`;
@@ -10,9 +11,8 @@ const ICON = {
   close: icon("M4.5 4.5l7 7M11.5 4.5l-7 7"),
 };
 
-type Flag = "caseSensitive" | "regexp" | "wholeWord";
-// 大文字小文字・正規表現・単語単位は、VSCode と同じ記号で示す
-const FLAGS: { key: Flag; glyph: string; label: string }[] = [
+// 大文字小文字・正規表現・単語単位は、VSCode と同じ記号で示す。画面のほかの検索のバー（SearchBar.tsx）も同じものを使う
+export const FLAGS: { key: keyof SearchOpts; glyph: string; label: string }[] = [
   { key: "caseSensitive", glyph: "Aa", label: "大文字小文字を区別" },
   { key: "wholeWord", glyph: "ab", label: "単語単位" },
   { key: "regexp", glyph: ".*", label: "正規表現" },
@@ -58,7 +58,7 @@ export function createFindPanel(view: EditorView): Panel {
     view.dispatch({ effects: setSearchQuery.of(next) });
   };
 
-  const flags = {} as Record<Flag, HTMLButtonElement>;
+  const flags = {} as Record<keyof SearchOpts, HTMLButtonElement>;
   for (const f of FLAGS) {
     const b = button("cm-find-flag", f.label, `<span>${f.glyph}</span>`, () => {
       b.setAttribute("aria-pressed", String(b.getAttribute("aria-pressed") !== "true"));
