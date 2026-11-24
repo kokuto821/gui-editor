@@ -11,8 +11,8 @@ export const IMAGE_TYPES: Record<string, string> = {
   webp: "image/webp",
   svg: "image/svg+xml",
 };
-const SNIFF_BYTES = 8192;
-const MAX_TEXT_BYTES = 2 * 1024 * 1024;
+export const SNIFF_BYTES = 8192;
+export const MAX_TEXT_BYTES = 2 * 1024 * 1024;
 
 /** 図解（HTML）が読み込んでよい、画面まわりのファイル。これ以外（テキスト、設定など）は配らない。 */
 export const ASSET_TYPES: Record<string, string> = {

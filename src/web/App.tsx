@@ -8,6 +8,8 @@ import { MenuHost } from "./components/Menu";
 import { Preview } from "./components/Preview";
 import { PreviewTabs } from "./components/PreviewTabs";
 import { ProjectTabs } from "./components/ProjectTabs";
+import { QuickOpen } from "./components/QuickOpen";
+import { SearchPanel } from "./components/SearchPanel";
 import { StatusBar } from "./components/StatusBar";
 import { Toolbar } from "./components/Toolbar";
 import { useSplitDrag } from "./hooks/useSplitDrag";
@@ -31,7 +33,7 @@ function Main() {
         <>
           <div className="list-col flex min-h-0 flex-none flex-col overflow-hidden" style={{ width: layout.listWidth }}>
             <SideSwitch />
-            {diff ? <GitPanes /> : p.side === "bm" ? <BookmarkList /> : <FileList />}
+            {diff ? <GitPanes /> : p.side === "bm" ? <BookmarkList /> : p.side === "search" ? <SearchPanel /> : <FileList />}
           </div>
           <div role="separator" aria-orientation="vertical" aria-label="一覧の幅（ドラッグで変更、ダブルクリックで戻す）" className="group relative w-px flex-none cursor-col-resize bg-line" {...drag}>
             <span className="absolute inset-y-0 -left-1 w-2.5 group-hover:bg-soft/70" />
@@ -76,6 +78,7 @@ export function App() {
       {ready ? <Main /> : <div className="grid place-items-center text-mute">接続しています…</div>}
       <div className="overflow-hidden">{panels.status && <StatusBar />}</div>
       <MenuHost />
+      <QuickOpen />
       <DialogHost />
       <Toast />
     </div>

@@ -5,6 +5,7 @@ import { BackendError } from "../backend/types";
 import { baseOf, dirOf, extOf, isInside, joinPath } from "../paths";
 import { isDirty, useDocs } from "./docs";
 import { useGit } from "./git";
+import { useSearch, visibleHits } from "./search";
 import { bookmarksOf, isFavorite, projectLabel, useSettings, withBookmark, withMovedPaths } from "./settings";
 import { useUi } from "./ui";
 
@@ -16,7 +17,7 @@ export interface Project {
   cwd: string;
   /** フォルダ（絶対パス）ごとに、選んでいる名前を覚える */
   sel: Record<string, string>;
-  side: "bm" | "files";
+  side: "bm" | "files" | "search";
   view: "files" | "diff";
   /** プレビューのタブ。中身はファイルかフォルダの絶対パス（"" は、まだ何も選んでいない） */
   tabs: string[];
@@ -60,10 +61,12 @@ interface State {
   up(): Promise<void>;
   goRoot(): Promise<void>;
   navigateTo(path: string): Promise<void>;
-  setSide(side: "bm" | "files"): Promise<void>;
+  setSide(side: Project["side"]): Promise<void>;
   toggleView(): Promise<void>;
   setGitFocus(f: "changes" | "commits"): void;
   setGitIndex(i: number): void;
+  /** 本文検索の結果（hits の添字）を開く */
+  openHit(i: number): Promise<void>;
 
   // タブ
   openInNewTab(path: string): Promise<void>;
@@ -107,9 +110,14 @@ const blank = (root: string): Project => ({
 /** 一覧の先頭に置く、1つ上のフォルダへ移る行の名前 */
 export const UP = "..";
 
-/** いまの選択（ファイルかフォルダ）。ブックマークの表示では、ブックマークの選択。 */
+/** いまの選択（ファイルかフォルダ）。ブックマークの表示では、ブックマークの選択。検索の表示では、今のタブのファイル。 */
 export function currentOf(p: Project | undefined, entries: Entry[]): Current | null {
   if (!p) return null;
+  if (p.side === "search") {
+    // 検索の一覧は、カーソルでプレビューを替えない（結果を開くと、今のタブの中身が替わる）
+    const path = p.tabs[p.tabIndex];
+    return path ? { path, name: baseOf(path), isDir: false } : null;
+  }
   if (p.side === "bm") {
     const bms = bookmarksOf(useSettings.getState().s, p.root);
     const path = p.bmSel && bms.includes(p.bmSel) ? p.bmSel : bms[0];
@@ -277,6 +285,7 @@ export const useApp = create<State>()((set, get) => {
   async function navigate(path: string) {
     const p = project();
     if (!p) return;
+    touch();
     const dir = dirOf(path);
     const bookmarked = p.side === "bm" && bookmarksOf(settings().s, p.root).includes(path);
     patch((q) =>
@@ -386,6 +395,15 @@ export const useApp = create<State>()((set, get) => {
     async move(delta) {
       const p = project();
       if (!p) return;
+      if (p.side === "search") {
+        const st = useSearch.getState().text[p.root];
+        const v = visibleHits(st);
+        const at = st?.result.kind === "done" && st.result.sel ? v.indexOf(st.result.sel.i) : -1;
+        const next = at < 0 ? (delta > 0 ? 0 : v.length - 1) : Math.max(0, Math.min(v.length - 1, at + delta));
+        const t = v[next];
+        if (next !== at && t !== undefined) await get().openHit(t);
+        return;
+      }
       if (p.side === "bm") {
         const bms = bookmarksOf(settings().s, p.root);
         if (!bms.length) return;
@@ -402,6 +420,11 @@ export const useApp = create<State>()((set, get) => {
     async jump(end) {
       const p = project();
       if (!p) return;
+      if (p.side === "search") {
+        const v = visibleHits(useSearch.getState().text[p.root]);
+        const t = end ? v[v.length - 1] : v[0];
+        return t === undefined ? undefined : get().openHit(t);
+      }
       if (p.side === "bm") {
         const bms = bookmarksOf(settings().s, p.root);
         const t = end ? bms[bms.length - 1] : bms[0];
@@ -446,6 +469,10 @@ export const useApp = create<State>()((set, get) => {
       const p = project();
       if (!p) return;
       patch((q) => ({ ...q, side, view: "files" }));
+      if (side === "search") {
+        set({ pane: "list" });
+        useSearch.getState().focusInput();
+      }
       touch();
       syncTab();
       await loadCurrent();
@@ -470,6 +497,23 @@ export const useApp = create<State>()((set, get) => {
     setGitIndex(i) {
       patch((q) => ({ ...q, gi: { ...q.gi, [q.gfocus]: i } }));
       reloadDiff();
+    },
+
+    async openHit(i) {
+      const p = project();
+      const rv = p && useSearch.getState().select(p.root, i);
+      if (!rv) return;
+      // 今のタブの中身が、そのファイルに替わる（一覧で選び直すのと同じ）。該当行へは、読み込んだあとで Preview が移る
+      touch();
+      const q = project();
+      if (!q) return;
+      if (q.tabs[q.tabIndex] !== rv.path) lastReplaced = { index: q.tabIndex, prev: q.tabs[q.tabIndex] ?? "", path: rv.path };
+      // 「ファイル」に切り替えたとき、同じ場所が出るように、一覧もそのフォルダにする
+      const dir = dirOf(rv.path);
+      patch((x) => ({ ...withSel(x, dir, baseOf(rv.path)), cwd: dir, tabs: x.tabs.map((t, j) => (j === x.tabIndex ? rv.path : t)) }));
+      set({ pane: "list" });
+      if (dir !== q.cwd) await refresh();
+      else await loadCurrent();
     },
 
     async openInNewTab(path) {

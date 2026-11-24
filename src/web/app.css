@@ -53,6 +53,10 @@ button {
   outline: 2px solid var(--color-ink);
   outline-offset: 1px;
 }
+/* 入力欄は、自分の枠（border）で選択中を示す。上の outline と重なると太くなる */
+input:focus-visible {
+  outline: none;
+}
 
 /* 一覧の行の「…」: 幅が狭いときは出さない（一覧の幅で決めるので、コンテナクエリ） */
 .list-col { container-type: inline-size; container-name: list; }

@@ -1,9 +1,9 @@
 import { UP, currentOf, shownOf, useApp, useProject } from "../stores/app";
-import { baseOf, isInside, tilde } from "../paths";
+import { baseOf, dirOf, isInside, tilde } from "../paths";
 import { useDocs } from "../stores/docs";
+import { MOD } from "../keys";
 
-const Kbd = ({ children }: { children: React.ReactNode }) => <kbd className="rounded border border-line bg-code px-1 font-mono text-[10px] text-ink">{children}</kbd>;
-const SAVE = /Mac|iPhone|iPad/.test(navigator.platform) ? "⌘S" : "Ctrl+S";
+export const Kbd = ({ children }: { children: React.ReactNode }) => <kbd className="rounded border border-line bg-code px-1 font-mono text-[10px] text-ink">{children}</kbd>;
 
 export function StatusBar() {
   const p = useProject();
@@ -19,10 +19,14 @@ export function StatusBar() {
     if (p.view === "diff") parts.push("差分", p.gfocus === "changes" ? "Changes" : "Commits");
     else {
       if (p.side === "bm") parts.push("ブックマーク");
-      const dir = p.side === "bm" && c ? c.path.slice(0, c.path.lastIndexOf("/")) || "/" : p.cwd;
+      if (p.side === "search") parts.push("検索");
+      // 検索の表示では、今のタブのファイルの場所（ファイルがなければ出さない）
+      const dir = p.side !== "files" && c ? dirOf(c.path) : p.side === "search" ? null : p.cwd;
       // プロジェクトの中は、フォルダからの相対パスで。外にいるときは、~ から
-      if (isInside(p.root, dir)) parts.push(...dir.slice(p.root.length).split("/").filter(Boolean));
-      else parts.push(tilde(dir, home));
+      if (dir !== null) {
+        if (isInside(p.root, dir)) parts.push(...dir.slice(p.root.length).split("/").filter(Boolean));
+        else parts.push(tilde(dir, home));
+      }
       if (c && c.name !== UP) parts.push(c.name);
     }
   }
@@ -38,9 +42,11 @@ export function StatusBar() {
         {p?.view === "diff" ? (
           <><Kbd>↑↓</Kbd> 選択 <Kbd>←→</Kbd> パネル <Kbd>d u</Kbd> スクロール <Kbd>v</Kbd> ファイル</>
         ) : editing ? (
-          <><Kbd>{SAVE}</Kbd> 保存 <Kbd>Esc</Kbd> 閲覧に戻る</>
+          <><Kbd>{MOD}S</Kbd> 保存 <Kbd>Esc</Kbd> 閲覧に戻る</>
+        ) : p?.side === "search" ? (
+          <><Kbd>↑↓</Kbd> 結果 <Kbd>/</Kbd> 入力へ <Kbd>{MOD}F</Kbd> ページ内検索 <Kbd>{MOD}P</Kbd> ファイルを開く</>
         ) : (
-          <><Kbd>↑↓</Kbd> 移動 <Kbd>←→</Kbd> 階層 <Kbd>e</Kbd> 編集 <Kbd>d u</Kbd> スクロール <Kbd>v</Kbd> 差分</>
+          <><Kbd>↑↓</Kbd> 移動 <Kbd>←→</Kbd> 階層 <Kbd>e</Kbd> 編集 <Kbd>d u</Kbd> スクロール <Kbd>v</Kbd> 差分 <Kbd>{MOD}P</Kbd> ファイルを開く <Kbd>{MOD}Shift+F</Kbd> 検索</>
         )}
       </span>
     </div>

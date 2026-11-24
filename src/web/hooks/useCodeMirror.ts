@@ -1,10 +1,13 @@
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { HighlightStyle, LanguageDescription, syntaxHighlighting } from "@codemirror/language";
 import { languages } from "@codemirror/language-data";
+import { search, searchKeymap } from "@codemirror/search";
 import { Annotation, Compartment, EditorState } from "@codemirror/state";
 import { drawSelection, EditorView, highlightActiveLine, keymap, lineNumbers } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 import { type RefObject, useEffect, useRef } from "react";
+import { matchesIn } from "../../shared/match";
+import { createFindPanel } from "./findPanel";
 
 /** 外から差し替えた変更（編集としては数えない）の目印 */
 const external = Annotation.define<boolean>();
@@ -21,7 +24,36 @@ const theme = EditorView.theme({
   "&.cm-focused": { outline: "none" },
   "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": { backgroundColor: "var(--color-soft)" },
   ".cm-cursor": { borderLeftColor: "var(--color-ink)" },
+  // 検索パネル（Ctrl+F）。作りは findPanel.ts
+  // 既定の z-index（300）だと、クイックオープンやメニューより前に出てしまう
+  ".cm-panels": { backgroundColor: "var(--color-bg)", color: "var(--color-ink)", zIndex: "2" },
+  ".cm-panels.cm-panels-top": { borderBottom: "1px solid var(--color-line)" },
+  ".cm-find": { display: "flex", alignItems: "center", gap: "2px", padding: "4px 8px", fontFamily: "var(--font-sans)", fontSize: "12.5px" },
+  ".cm-find-input": { width: "220px", minWidth: "0", marginRight: "4px", fontSize: "12.5px", color: "var(--color-ink)", backgroundColor: "var(--color-bg)", border: "1px solid var(--color-line)", borderRadius: "4px", padding: "2px 6px", outline: "none" },
+  ".cm-find-input:focus": { borderColor: "var(--color-ink)" },
+  ".cm-find-btn": { display: "grid", placeItems: "center", width: "24px", height: "24px", flex: "none", border: "none", borderRadius: "4px", backgroundColor: "transparent", color: "var(--color-mute)", cursor: "pointer", font: "inherit" },
+  ".cm-find-btn:hover": { backgroundColor: "var(--color-soft)", color: "var(--color-ink)" },
+  ".cm-find-btn svg": { width: "14px", height: "14px", fill: "none", stroke: "currentColor", strokeWidth: "1.5", strokeLinecap: "round", strokeLinejoin: "round" },
+  ".cm-find-flag": { fontFamily: "var(--font-mono)", fontSize: "11px", fontWeight: "600" },
+  ".cm-find-flag[aria-pressed=true]": { backgroundColor: "var(--color-soft)", color: "var(--color-ink)" },
+  ".cm-find-close": { marginLeft: "auto" },
+  ".cm-searchMatch": { backgroundColor: "color-mix(in srgb, var(--color-ink) 16%, transparent)", outline: "1px solid color-mix(in srgb, var(--color-ink) 30%, transparent)", borderRadius: "2px" },
+  ".cm-searchMatch.cm-searchMatch-selected, .cm-searchMatch-selected *": { backgroundColor: "var(--color-ink)", color: "var(--color-bg)" },
 });
+
+const phrases = EditorState.phrases.of({
+  Find: "検索",
+  "current match": "現在の一致",
+  "on line": "行",
+});
+
+/** line 行目（1 始まり）を真ん中へスクロールし、その行の re の最初の一致を選ぶ（なければ行の先頭） */
+export function revealLine(v: EditorView, line: number, re: RegExp | null): void {
+  const ln = v.state.doc.line(Math.max(1, Math.min(line, v.state.doc.lines)));
+  const m = re ? matchesIn(re, ln.text).next() : null;
+  const hit = m && !m.done ? m.value : { from: 0, to: 0 };
+  v.dispatch({ selection: { anchor: ln.from + hit.from, head: ln.from + hit.to }, effects: EditorView.scrollIntoView(ln.from + hit.from, { y: "center" }) });
+}
 
 const highlight = HighlightStyle.define([
   { tag: [t.keyword, t.operatorKeyword, t.modifier, t.controlKeyword], fontWeight: "600" },
@@ -66,7 +98,9 @@ export function useCodeMirror(parent: RefObject<HTMLElement | null>, o: CodeMirr
           drawSelection(),
           highlightActiveLine(),
           syntaxHighlighting(highlight),
-          keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
+          keymap.of([...defaultKeymap, ...searchKeymap, ...historyKeymap, indentWithTab]),
+          search({ top: true, createPanel: createFindPanel }),
+          phrases,
           theme,
           editableC.current.of([EditorView.editable.of(o.editable), EditorState.readOnly.of(!o.editable)]),
           langC.current.of([]),

@@ -26,3 +26,7 @@
 .md .mmd { margin: 14px 0; overflow: auto; text-align: center; min-height: 40px; color: var(--color-mute); font-size: 12.5px; }
 .md .mmd svg { max-width: 100%; height: auto; }
 .mmd-err { color: var(--color-del-ink); font-size: 12.5px; margin: 0 0 6px; text-align: left; white-space: pre-wrap; }
+
+/* 検索の結果から開いたときの一致（hit）と、ページ内検索（fm）。cur は今の一致 */
+.md mark.hit, .md mark.fm { color: inherit; background: color-mix(in srgb, var(--color-ink) 16%, transparent); border-radius: 2px; box-shadow: 0 0 0 1px color-mix(in srgb, var(--color-ink) 30%, transparent); }
+.md mark.cur { background: var(--color-ink); color: var(--color-bg); box-shadow: none; }

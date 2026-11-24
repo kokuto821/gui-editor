@@ -11,6 +11,7 @@ import type { Response, ServerEvent } from "../shared/protocol.js";
 import { ASSET_TYPES, FsError, Files, asFsError } from "./fs.js";
 import { isInside } from "./paths.js";
 import * as git from "./git.js";
+import * as search from "./search.js";
 import { loadSettings, saveSettings, sanitize } from "./settings.js";
 import { Watchers } from "./watch.js";
 
@@ -235,6 +236,16 @@ export async function startServer(opts: { port: number; token: string; onStop?: 
             const file = typeof params.path === "string" ? params.path : undefined;
             const hash = typeof params.hash === "string" ? params.hash : undefined;
             result = await git.diff(root, file, hash);
+            break;
+          }
+          case "search.files":
+            result = await search.listFiles(await gitRoot(params.root));
+            break;
+          case "search.text": {
+            const root = await gitRoot(params.root);
+            const o = (params.opts ?? {}) as Record<string, unknown>;
+            const opts = { caseSensitive: o.caseSensitive === true, wholeWord: o.wholeWord === true, regexp: o.regexp === true };
+            result = await search.searchText(root, typeof params.query === "string" ? params.query : "", opts);
             break;
           }
           case "settings.get":

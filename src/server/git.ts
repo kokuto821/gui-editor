@@ -12,7 +12,7 @@ interface Out {
 }
 
 /** git を読み取り専用で呼ぶ（書き込み系は呼ばない）。GIT_OPTIONAL_LOCKS=0 で、index のロックを取らない。 */
-function git(cwd: string, args: string[], okCodes: number[] = [0]): Promise<Out> {
+export function git(cwd: string, args: string[], okCodes: number[] = [0]): Promise<Out> {
   return new Promise((resolve) => {
     execFile(
       "git",
